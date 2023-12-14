@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Torn Disposal Cheatsheet
-// @version      0.1.0
+// @version      0.1.1
 // @description  Quick reference for disposal
 // @author       Dola [2720731]
 // @match        https://www.torn.com/loader.php?sid=crimes*
@@ -15,15 +15,15 @@ if (!url.includes("#/disposal")){
 
 const solutions = {
     // abandon, bury, burn, sink, dissolve
-    'Biological Waste': ['bury', 'burn', 'sink'],
+    'Biological Waste': ['sink'],
     'Body Part': [],
     'Building Debris': ['sink'],
     'Dead body': [],
     'Documents': ['burn'],
-    'Firearm': [],
+    'Firearm': ['sink'],
     'General Waste': ['bury', 'burn'],
     'Industrial Waste': ['sink'],
-    'Murder Weapon': [],
+    'Murder Weapon': ['sink'],
     'Old Furniture': ['burn'],
     'Broken Appliance': ['sink'],
     'Vehicle': ['burn', 'sink'],
