@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Torn: Pickpocket Targets
-// @version      0.2.3
+// @version      0.2.4
 // @description  Highlight Pickpocket targets
 // @author       Dola [2720731]
 // @match        https://www.torn.com/loader.php?sid=crimes*
@@ -16,7 +16,7 @@
     sound.src = 'https://cdn.pixabay.com/download/audio/2024/05/23/audio_336d55dfa8.mp3?filename=servant-bell-ring-2-211683.mp3';
     sound.preload = 'auto';
 
-    const markGroups = ["Cyclist"]
+    const markGroups = ["Cyclist"];
 
     function updateDivColors() {
         const url = window.location.href;
@@ -24,17 +24,17 @@
             return;
         }
 
-        const rows = document.querySelectorAll('.crime-option:not(.processed)')
+        const rows = document.querySelectorAll('.crime-option:not(.processed)');
+        const container = document.querySelector('.crimeOptionGroup___gQ6rI');
         rows.forEach(row => {
             const name = row.querySelector('div .titleAndProps___DdeVu > div:first-child').textContent.trim();
             if (markGroups.some(target => name.includes(target))) {
                 row.style.borderLeft = `3px solid #37b24d`;
                 row.style.background = 'darkgreen';
                 row.querySelector('div .childrenWrapper___h2Sw5').style.color = '#37b24d';
+                container.prepend(row);
                 sound.play();
-            } else {
-                row.style.display = 'none';
-            };
+            }
             row.classList.add('processed');
         });
     };
