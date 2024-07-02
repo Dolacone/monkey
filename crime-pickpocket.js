@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Torn: Pickpocket Targets
-// @version      0.2.5
+// @version      0.3.0
 // @description  Highlight Pickpocket targets
 // @author       Dola [2720731]
 // @match        https://www.torn.com/loader.php?sid=crimes*
@@ -27,15 +27,24 @@
         const rows = document.querySelectorAll('.crime-option:not(.processed)');
         const container = document.querySelector('.crimeOptionGroup___gQ6rI');
         rows.forEach(row => {
+            row.classList.add('processed');
             const name = row.querySelector('div .titleAndProps___DdeVu > div:first-child').textContent.trim();
-            if (markGroups.some(target => name.includes(target))) {
+            const buttons = row.querySelectorAll('button');
+            if (markGroups.some(target => name.includes(target)) && buttons[1].ariaDisabled === 'false') {
                 row.style.borderLeft = `3px solid #37b24d`;
                 row.style.background = 'darkgreen';
                 row.querySelector('div .childrenWrapper___h2Sw5').style.color = '#37b24d';
-                container.prepend(row);
+
+                // delete row after clicked
+                buttons[1].addEventListener('click', () => {
+                    setTimeout(() => {
+                        row.remove();
+                    }, 3000);
+                });
+
+                container.prepend(row); // move row to first
                 sound.play();
             }
-            row.classList.add('processed');
         });
     };
 
