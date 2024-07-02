@@ -12,6 +12,10 @@
 (function() {
     'use strict';
 
+    let sound = document.createElement('audio');
+    sound.src = 'https://cdn.pixabay.com/download/audio/2024/05/23/audio_336d55dfa8.mp3?filename=servant-bell-ring-2-211683.mp3';
+    sound.preload = 'auto';
+
     const markGroups = ["Cyclist"]
 
     function updateDivColors() {
@@ -27,6 +31,7 @@
               row.style.borderLeft = `3px solid #37b24d`
               row.style.background = 'darkgreen'
               row.querySelector('div .childrenWrapper___h2Sw5').style.color = '#37b24d'
+              sound.play();
           };
           row.classList.add('processed');
         });
