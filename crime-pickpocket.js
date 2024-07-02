@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Torn: Pickpocket Targets
-// @version      0.2.4
+// @version      0.2.5
 // @description  Highlight Pickpocket targets
 // @author       Dola [2720731]
 // @match        https://www.torn.com/loader.php?sid=crimes*
@@ -39,6 +39,5 @@
         });
     };
 
-    updateDivColors();
-    setInterval(updateDivColors, 1000);
+    setInterval(updateDivColors, 2000);
 })();
