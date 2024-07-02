@@ -12,7 +12,7 @@
 (function() {
     'use strict';
 
-    const markGroups = ["Cyclist", "Postal worker"]
+    const markGroups = ["Cyclist"]
 
     function updateDivColors() {
         const url = window.location.href;
