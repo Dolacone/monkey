@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Torn: Pickpocket Targets
-// @version      0.2.1
+// @version      0.2.2
 // @description  Highlight Pickpocket targets
 // @author       Dola [2720731]
 // @match        https://www.torn.com/loader.php?sid=crimes*
@@ -27,10 +27,10 @@
         const rows = document.querySelectorAll('.crime-option:not(.processed)')
         rows.forEach(row => {
           const name = row.querySelector('div .titleAndProps___DdeVu > div:first-child').textContent.trim();
-          if (markGroups.includes(name)) {
-              row.style.borderLeft = `3px solid #37b24d`
-              row.style.background = 'darkgreen'
-              row.querySelector('div .childrenWrapper___h2Sw5').style.color = '#37b24d'
+          if (markGroups.some(target => name.includes(target))) {
+              row.style.borderLeft = `3px solid #37b24d`;
+              row.style.background = 'darkgreen';
+              row.querySelector('div .childrenWrapper___h2Sw5').style.color = '#37b24d';
               sound.play();
           };
           row.classList.add('processed');
