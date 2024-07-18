@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Torn: Pickpocket Targets
-// @version      0.3.0
+// @version      0.3.1
 // @description  Highlight Pickpocket targets
 // @author       Dola [2720731]
 // @match        https://www.torn.com/loader.php?sid=crimes*
@@ -16,7 +16,7 @@
     sound.src = 'https://cdn.pixabay.com/download/audio/2024/05/23/audio_336d55dfa8.mp3?filename=servant-bell-ring-2-211683.mp3';
     sound.preload = 'auto';
 
-    const markGroups = ["Cyclist"];
+    const markGroups = ["Cyclist", "Postal worker"];
 
     function updateDivColors() {
         const url = window.location.href;
@@ -40,7 +40,16 @@
                     setTimeout(() => {
                         row.remove();
                     }, 3000);
+                    document.removeEventListener('keydown', keyPressHandler);
                 });
+
+                // bind keypress to click button
+                function keyPressHandler(event) {
+                    if (event.key == 'q') {
+                        buttons[1].click();
+                    }
+                }
+                document.addEventListener('keydown', keyPressHandler);
 
                 container.prepend(row); // move row to first
                 sound.play();
