@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Torn: Pickpocket Targets
-// @version      0.3.1
+// @version      0.4.0
 // @description  Highlight Pickpocket targets
 // @author       Dola [2720731]
 // @match        https://www.torn.com/loader.php?sid=crimes*
@@ -34,6 +34,7 @@
                 row.style.borderLeft = `3px solid #37b24d`;
                 row.style.background = 'darkgreen';
                 row.querySelector('div .childrenWrapper___h2Sw5').style.color = '#37b24d';
+                document.body.style.backgroundColor = "#ADD8E6"
 
                 // delete row after clicked
                 buttons[1].addEventListener('click', () => {
@@ -41,6 +42,7 @@
                         row.remove();
                     }, 3000);
                     document.removeEventListener('keydown', keyPressHandler);
+                    document.body.style.backgroundColor = "black"
                 });
 
                 // bind keypress to click button
