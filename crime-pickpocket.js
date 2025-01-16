@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Torn: Pickpocket Targets
-// @version      0.4.1
+// @version      0.4.3
 // @description  Highlight Pickpocket targets
 // @author       Dola [2720731]
 // @match        https://www.torn.com/loader.php?sid=crimes*
@@ -25,24 +25,22 @@
         }
 
         const rows = document.querySelectorAll('.crime-option:not(.processed)');
-        const container = document.querySelector('.crimeOptionGroup___gQ6rI');
         rows.forEach(row => {
             row.classList.add('processed');
             const name = row.querySelector('div .titleAndProps___DdeVu > div:first-child').textContent.trim();
             const buttons = row.querySelectorAll('button');
             if (markGroups.some(target => name.includes(target)) && buttons[1].ariaDisabled === 'false') {
+                const originalRowColor = row.style.backgroundColor;
                 row.style.borderLeft = `3px solid #37b24d`;
-                row.style.background = 'darkgreen';
+                row.style.backgroundColor = 'darkgreen';
                 row.querySelector('div .childrenWrapper___h2Sw5').style.color = '#37b24d';
-                document.body.style.backgroundColor = "#ADD8E6"
+                document.body.style.backgroundColor = 'red';
 
-                // delete row after clicked
+                // clear color after clicked
                 buttons[1].addEventListener('click', () => {
-                    setTimeout(() => {
-                        row.remove();
-                    }, 3000);
                     document.removeEventListener('keydown', keyPressHandler);
-                    document.body.style.backgroundColor = "black"
+                    document.body.style.backgroundColor = 'black';
+                    row.style.backgroundColor = originalRowColor;
                 });
 
                 // bind keypress to click button
@@ -53,7 +51,6 @@
                 }
                 document.addEventListener('keydown', keyPressHandler);
 
-                container.prepend(row); // move row to first
                 //sound.play();
             }
         });
