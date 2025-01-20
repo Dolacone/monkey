@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Torn: Pickpocket Targets
-// @version      0.4.3
+// @version      0.4.4
 // @description  Highlight Pickpocket targets
 // @author       Dola [2720731]
 // @match        https://www.torn.com/loader.php?sid=crimes*
@@ -31,6 +31,7 @@
             const buttons = row.querySelectorAll('button');
             if (markGroups.some(target => name.includes(target)) && buttons[1].ariaDisabled === 'false') {
                 const originalRowColor = row.style.backgroundColor;
+                const originalButtonParent = buttons[1].parentNode;
                 row.style.borderLeft = `3px solid #37b24d`;
                 row.style.backgroundColor = 'darkgreen';
                 row.querySelector('div .childrenWrapper___h2Sw5').style.color = '#37b24d';
@@ -41,6 +42,10 @@
                     document.removeEventListener('keydown', keyPressHandler);
                     document.body.style.backgroundColor = 'black';
                     row.style.backgroundColor = originalRowColor;
+
+                    // move button back
+                    originalButtonParent.replaceChildren(buttons[1]);
+                    buttons[1].style.display = "none";
                 });
 
                 // bind keypress to click button
@@ -50,8 +55,14 @@
                     }
                 }
                 document.addEventListener('keydown', keyPressHandler);
+                // move button to header
+                const newButtonParent = document.getElementsByClassName("resultCounts___n3YFJ")[0];
+                newButtonParent.replaceChildren(buttons[1]);
+                buttons[1].style.width = "130px";
 
                 //sound.play();
+            } else {
+                buttons[1].style.display = "none";
             }
         });
     };
