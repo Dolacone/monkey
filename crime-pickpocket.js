@@ -1,22 +1,46 @@
 // ==UserScript==
 // @name         Torn: Pickpocket Targets
-// @version      0.4.4
+// @version      0.5.0
 // @description  Highlight Pickpocket targets
 // @author       Dola [2720731]
 // @match        https://www.torn.com/loader.php?sid=crimes*
 // @downloadURL  https://raw.githubusercontent.com/Dolacone/torn/master/crime-pickpocket.js
 // @icon
-// @grant        none
+// @grant        GM_registerMenuCommand
+// @grant        GM_setValue
+// @grant        GM_getValue
 // ==/UserScript==
 
 (function() {
     'use strict';
 
+    const menuItems = ['Enable Sound', 'Cyclist', 'Postal worker'];
+    const menuSelected = GM_getValue('menuSelected', []);
+
+    function toggleItem(item) {
+        let updatedList = [...menuSelected];
+        if (updatedList.includes(item)) {
+            updatedList = updatedList.filter(i => i !== item);
+        } else {
+            updatedList.push(item);
+        }
+        GM_setValue('menuSelected', updatedList);
+    }
+
+    menuItems.forEach(item => {
+        const isChecked = menuSelected.includes(item);
+        GM_registerMenuCommand(
+            `${isChecked ? '☑' : '☐'} ${item}`,
+            () => {
+                toggleItem(item);
+                location.reload();
+            }
+        );
+    });
+
     let sound = document.createElement('audio');
     sound.src = 'https://cdn.pixabay.com/download/audio/2024/05/23/audio_336d55dfa8.mp3?filename=servant-bell-ring-2-211683.mp3';
     sound.preload = 'auto';
-
-    const markGroups = ["Cyclist"];
 
     function updateDivColors() {
         const url = window.location.href;
@@ -29,7 +53,7 @@
             row.classList.add('processed');
             const name = row.querySelector('div .titleAndProps___DdeVu > div:first-child').textContent.trim();
             const buttons = row.querySelectorAll('button');
-            if (markGroups.some(target => name.includes(target)) && buttons[1].ariaDisabled === 'false') {
+            if (menuSelected.some(target => name.includes(target)) && buttons[1].ariaDisabled === 'false') {
                 const originalRowColor = row.style.backgroundColor;
                 const originalButtonParent = buttons[1].parentNode;
                 row.style.borderLeft = `3px solid #37b24d`;
@@ -60,7 +84,9 @@
                 newButtonParent.replaceChildren(buttons[1]);
                 buttons[1].style.width = "130px";
 
-                //sound.play();
+                if (menuSelected.includes('Enable Sound')) {
+                    sound.play();
+                }
             } else {
                 buttons[1].style.display = "none";
             }
