@@ -22,7 +22,7 @@
 
     const menuItems = ['Enable Sound', 'Cyclist', 'Postal worker'];
     const menuSelected = GM_getValue('menuSelected', []);
-    let container;
+    let actionContainer;
 
     function toggleItem(item) {
         let updatedList = [...menuSelected];
@@ -49,11 +49,11 @@
     sound.src = 'https://cdn.pixabay.com/download/audio/2024/05/23/audio_336d55dfa8.mp3?filename=servant-bell-ring-2-211683.mp3';
     sound.preload = 'auto';
 
-    const waitContainer = setInterval(() => {
-        container = document.getElementsByClassName("resultCounts___n3YFJ")[0];
-        if (container) {
-            container.innerHTML = '';
-            clearInterval(waitContainer);
+    const waitActionContainer = setInterval(() => {
+        actionContainer = document.getElementsByClassName("resultCounts___n3YFJ")[0];
+        if (actionContainer) {
+            actionContainer.innerHTML = '';
+            clearInterval(waitActionContainer);
         }
     }, 100);
 
@@ -90,7 +90,7 @@
                 }
                 document.addEventListener('keydown', keyPressHandler);
                 // move button to header
-                container.appendChild(targetButton);
+                actionContainer.appendChild(targetButton);
                 targetButton.style.width = "130px";
 
                 if (menuSelected.includes('Enable Sound')) {
