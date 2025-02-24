@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Torn: Pickpocket Targets
-// @version      0.5.1
+// @version      0.5.2
 // @description  Highlight Pickpocket targets
 // @author       Dola [2720731]
 // @match        https://www.torn.com/loader.php?sid=crimes*
@@ -23,6 +23,7 @@
     const menuItems = ['Enable Sound', 'Cyclist', 'Postal worker'];
     const menuSelected = GM_getValue('menuSelected', []);
     let actionContainer;
+    let resultContainer;
 
     function toggleItem(item) {
         let updatedList = [...menuSelected];
@@ -56,6 +57,13 @@
             clearInterval(waitActionContainer);
         }
     }, 100);
+    const waitResultContainer = setInterval(() => {
+        resultContainer = document.getElementsByClassName("bannerArea___bnT7m")[1];
+        if (resultContainer) {
+            resultContainer.innerHTML = '';
+            clearInterval(waitResultContainer);
+        }
+    }, 100);
 
     function updateDivColors() {
         const rows = document.querySelectorAll('.crime-option:not(.processed)');
@@ -80,6 +88,10 @@
                     // move button back
                     originalButtonParent.replaceChildren(targetButton);
                     targetButton.style.display = "none";
+
+                    setInterval(() => {
+                        moveOutcomeResult();
+                    }, 500);
                 });
 
                 // bind keypress to click button
@@ -101,6 +113,20 @@
             }
         });
     };
+
+    function moveOutcomeResult() {
+        const outcomeWrappers = document.querySelectorAll(".outcomeWrapper___I8dXb");
+        outcomeWrappers.forEach(wrapper => {
+            if (wrapper.innerHTML !== "") {
+                const rewardElement = wrapper.querySelector(".outcomeReward___E34U7");
+                if (rewardElement) {
+                    resultContainer.innerHTML = '';
+                    resultContainer.appendChild(rewardElement);
+                    clearInterval(moveOutcomeResult);
+                }
+            }
+        });
+    }
 
     setInterval(() => {
         updateDivColors();
