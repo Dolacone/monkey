@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Torn: Pickpocket Targets
-// @version      0.5.2
+// @version      0.5.3
 // @description  Highlight Pickpocket targets
 // @author       Dola [2720731]
 // @match        https://www.torn.com/loader.php?sid=crimes*
@@ -21,30 +21,36 @@
     }
 
     const menuItems = ['Enable Sound', 'Cyclist', 'Postal worker'];
-    const menuSelected = GM_getValue('menuSelected', []);
+    let menuSelected;
     let actionContainer;
     let resultContainer;
 
-    function toggleItem(item) {
-        let updatedList = [...menuSelected];
-        if (updatedList.includes(item)) {
-            updatedList = updatedList.filter(i => i !== item);
-        } else {
-            updatedList.push(item);
-        }
-        GM_setValue('menuSelected', updatedList);
-    }
+    if (typeof GM_info !== "undefined" && GM_info.scriptHandler === "Tampermonkey") {
+        menuSelected = GM_getValue('menuSelected', []);
 
-    menuItems.forEach((item) => {
-        const isChecked = menuSelected.includes(item);
-        GM_registerMenuCommand(
-            `${isChecked ? '☑' : '☐'} ${item}`,
-            () => {
-                toggleItem(item);
-                location.reload();
+        function toggleItem(item) {
+            let updatedList = [...menuSelected];
+            if (updatedList.includes(item)) {
+                updatedList = updatedList.filter(i => i !== item);
+            } else {
+                updatedList.push(item);
             }
-        );
-    });
+            GM_setValue('menuSelected', updatedList);
+        }
+
+        menuItems.forEach((item) => {
+            const isChecked = menuSelected.includes(item);
+            GM_registerMenuCommand(
+                `${isChecked ? '☑' : '☐'} ${item}`,
+                () => {
+                    toggleItem(item);
+                    location.reload();
+                }
+            );
+        });
+    } else {
+        menuSelected = menuItems;
+    }
 
     let sound = document.createElement('audio');
     sound.src = 'https://cdn.pixabay.com/download/audio/2024/05/23/audio_336d55dfa8.mp3?filename=servant-bell-ring-2-211683.mp3';
