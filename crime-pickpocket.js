@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Torn: Pickpocket Targets
-// @version      0.5.3
+// @version      0.5.4
 // @description  Highlight Pickpocket targets
 // @author       Dolacone
 // @match        https://www.torn.com/loader.php?sid=crimes*
@@ -20,7 +20,7 @@
         return;
     }
 
-    const menuItems = ['Enable Sound', 'Cyclist', 'Postal worker'];
+    const menuItems = ['Enable Sound', 'Cyclist', 'Mobster'];
     let menuSelected;
     let actionContainer;
     let resultContainer;
