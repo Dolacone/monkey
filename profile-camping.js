@@ -2,10 +2,10 @@
 // @name         Torn: Profile camping
 // @version      0.3.0
 // @description
-// @author
+// @author       Dolacone
 // @match        https://www.torn.com/profiles.php?*
-// @downloadURL  https://raw.githubusercontent.com/Dolacone/torn/master/profile-camping.js
-// @updateURL    https://raw.githubusercontent.com/Dolacone/torn/master/profile-camping.js
+// @downloadURL  https://raw.githubusercontent.com/Dolacone/monkey/refs/heads/master/profile-camping.js
+// @updateURL    https://raw.githubusercontent.com/Dolacone/monkey/refs/heads/master/profile-camping.js
 // @icon
 // @grant        none
 // ==/UserScript==

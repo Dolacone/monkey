@@ -2,9 +2,11 @@
 // @name         Torn Disposal Cheatsheet
 // @version      0.1.1
 // @description  Quick reference for disposal
-// @author       Dola [2720731]
+// @author       Dolacone
 // @match        https://www.torn.com/loader.php?sid=crimes*
-// @downloadURL  https://raw.githubusercontent.com/Dolacone/torn/master/crime-disposal.js
+// @downloadURL  https://raw.githubusercontent.com/Dolacone/monkey/refs/heads/master/crime-disposal.js
+// @updateURL    https://raw.githubusercontent.com/Dolacone/monkey/refs/heads/master/crime-disposal.js
+// @icon
 // @grant        none
 // ==/UserScript==
 

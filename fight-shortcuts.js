@@ -2,10 +2,10 @@
 // @name         Torn: Fight Shortcuts
 // @version      0.5.0
 // @description  Fight better
-// @author       Dola [2720731]
+// @author       Dolacone
 // @match        https://www.torn.com/loader.php?sid=attack*
-// @downloadURL  https://raw.githubusercontent.com/Dolacone/torn/master/fight-shortcuts.js
-// @updateURL    https://raw.githubusercontent.com/Dolacone/torn/master/fight-shortcuts.js
+// @downloadURL  https://raw.githubusercontent.com/Dolacone/monkey/refs/heads/master/fight-shortcuts.js
+// @updateURL    https://raw.githubusercontent.com/Dolacone/monkey/refs/heads/master/fight-shortcuts.js
 // @icon
 // @grant        none
 // ==/UserScript==

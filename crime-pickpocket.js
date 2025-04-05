@@ -2,10 +2,10 @@
 // @name         Torn: Pickpocket Targets
 // @version      0.5.3
 // @description  Highlight Pickpocket targets
-// @author       Dola [2720731]
+// @author       Dolacone
 // @match        https://www.torn.com/loader.php?sid=crimes*
-// @downloadURL  https://raw.githubusercontent.com/Dolacone/torn/master/crime-pickpocket.js
-// @updateURL    https://raw.githubusercontent.com/Dolacone/torn/master/crime-pickpocket.js
+// @downloadURL  https://raw.githubusercontent.com/Dolacone/monkey/refs/heads/master/crime-pickpocket.js
+// @updateURL    https://raw.githubusercontent.com/Dolacone/monkey/refs/heads/master/crime-pickpocket.js
 // @icon
 // @grant        GM_registerMenuCommand
 // @grant        GM_setValue
