@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Torn: Fight Shortcuts
-// @version      0.5.0
+// @version      0.5.1
 // @description  Fight better
 // @author       Dolacone
 // @match        https://www.torn.com/loader.php?sid=attack*
@@ -63,7 +63,7 @@ function keypressHandler(event) {
 }
 
 function monitorFightStart() {
-    const fightButton = $(".btn___RxE8_:contains('Start Fight')");
+    const fightButton = $(".btn___RxE8_:contains('Start fight')");
     if (fightButton.is(':visible')) {
         fightButton.click();
         sound.play();
