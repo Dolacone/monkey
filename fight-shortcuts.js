@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Torn: Fight Shortcuts
-// @version      0.5.1
+// @version      0.6.0
 // @description  Fight better
 // @author       Dolacone
 // @match        https://www.torn.com/loader.php?sid=attack*
@@ -12,6 +12,7 @@
 
 let sound = new Audio('https://cdn.pixabay.com/download/audio/2024/05/23/audio_336d55dfa8.mp3?filename=servant-bell-ring-2-211683.mp3');
 let monitorFightStartInterval = null;
+let monitorTargetAvailableInterval = null;
 
 function keypressHandler(event) {
     event.preventDefault();
@@ -71,11 +72,22 @@ function monitorFightStart() {
     }
 }
 
+function monitorTargetAvailable() {
+    const attackBtn = document.querySelector('.profile-button-attack');
+    if (attackBtn.classList.contains('active')) {
+        clearInterval(monitorTargetAvailableInterval);
+        location.reload();
+    }
+}
+
 (function() {
     'use strict';
     document.body.style.backgroundColor = 'brown';
     monitorFightStartInterval = setInterval(() => {
         monitorFightStart();
-    }, 100);
+    }, 500);
+    monitorTargetAvailableInterval = setInterval(() => {
+        monitorTargetAvailable();
+    }, 500);
     document.addEventListener('keypress', keypressHandler);
 })();
