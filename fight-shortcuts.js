@@ -1,8 +1,9 @@
 // ==UserScript==
 // @name         Torn: Fight Shortcuts
-// @version      0.6.0
+// @version      0.6.1
 // @description  Fight better
 // @author       Dolacone
+// @match        https://www.torn.com/profiles.php?XID=*
 // @match        https://www.torn.com/loader.php?sid=attack*
 // @downloadURL  https://raw.githubusercontent.com/Dolacone/monkey/refs/heads/master/fight-shortcuts.js
 // @updateURL    https://raw.githubusercontent.com/Dolacone/monkey/refs/heads/master/fight-shortcuts.js
@@ -60,6 +61,11 @@ function keypressHandler(event) {
         const urlParams = new URLSearchParams(window.location.search);
         const id = urlParams.get('user2ID');
         window.location.href = "/profiles.php?XID=" + id
+    } else if (event.key.toLowerCase() === 'z') {
+        document.body.style.backgroundColor = 'green';
+        monitorTargetAvailableInterval = setInterval(() => {
+            monitorTargetAvailable();
+        }, 500);
     }
 }
 
@@ -76,7 +82,9 @@ function monitorTargetAvailable() {
     const attackBtn = document.querySelector('.profile-button-attack');
     if (attackBtn.classList.contains('active')) {
         clearInterval(monitorTargetAvailableInterval);
-        location.reload();
+        const urlParams = new URLSearchParams(window.location.search);
+        const id = urlParams.get('XID');
+        window.location.href = "/loader.php?sid=attack&user2ID=" + id
     }
 }
 
@@ -85,9 +93,6 @@ function monitorTargetAvailable() {
     document.body.style.backgroundColor = 'brown';
     monitorFightStartInterval = setInterval(() => {
         monitorFightStart();
-    }, 500);
-    monitorTargetAvailableInterval = setInterval(() => {
-        monitorTargetAvailable();
     }, 500);
     document.addEventListener('keypress', keypressHandler);
 })();
