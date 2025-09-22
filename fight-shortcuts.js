@@ -1,10 +1,11 @@
 // ==UserScript==
 // @name         Torn: Fight Shortcuts
-// @version      0.6.1
+// @version      0.6.2
 // @description  Fight better
 // @author       Dolacone
 // @match        https://www.torn.com/profiles.php?XID=*
 // @match        https://www.torn.com/loader.php?sid=attack*
+// @match        https://www.torn.com/loader2.php?sid=getInAttack*
 // @downloadURL  https://raw.githubusercontent.com/Dolacone/monkey/refs/heads/master/fight-shortcuts.js
 // @updateURL    https://raw.githubusercontent.com/Dolacone/monkey/refs/heads/master/fight-shortcuts.js
 // @icon
