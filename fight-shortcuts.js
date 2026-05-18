@@ -14,7 +14,7 @@
 function fightKeypressHandler(event) {
     let handled = true;
     if (event.key === ' ') {
-        const fightButton = $("button.torn-btn");
+        const fightButton = $("[class*='dialogButtons'] button.torn-btn");
 
         if (fightButton.is(':visible')) {
             fightButton.click();
