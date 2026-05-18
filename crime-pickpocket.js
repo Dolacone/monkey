@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Torn: Pickpocket Targets
-// @version      0.5.5
+// @version      0.5.6
 // @description  Highlight Pickpocket targets
 // @author       Dolacone
 // @match        https://www.torn.com/page.php?sid=crimes*
@@ -21,6 +21,7 @@
     }
 
     const menuItems = ['Enable Sound', 'Cyclist', 'Mobster'];
+    const targetRowSelector = '.pickpocketing-root .crime-option';
     let menuSelected;
     let actionContainer;
     let resultContainer;
@@ -57,14 +58,14 @@
     sound.preload = 'auto';
 
     const waitActionContainer = setInterval(() => {
-        actionContainer = document.getElementsByClassName("resultCounts___n3YFJ")[0];
+        actionContainer = document.querySelector('.pickpocketing-root [class*="resultCounts"]');
         if (actionContainer) {
             actionContainer.innerHTML = '';
             clearInterval(waitActionContainer);
         }
     }, 100);
     const waitResultContainer = setInterval(() => {
-        resultContainer = document.getElementsByClassName("bannerArea___bnT7m")[1];
+        resultContainer = document.querySelector('.pickpocketing-root [class*="currentCrime"] [class*="bannerArea"]');
         if (resultContainer) {
             resultContainer.innerHTML = '';
             clearInterval(waitResultContainer);
@@ -72,18 +73,35 @@
     }, 100);
 
     function updateDivColors() {
-        const rows = document.querySelectorAll('.crime-option:not(.processed)');
+        const rows = document.querySelectorAll(targetRowSelector);
         rows.forEach(row => {
-            row.classList.add('processed');
-            const name = row.querySelector('div .titleAndProps___DdeVu > div:first-child').textContent.trim();
-            const targetButton = row.querySelectorAll('button')[1];
-            if (menuSelected.some(target => name.includes(target)) && targetButton.ariaDisabled === 'false') {
+            const nameElement = row.querySelector('[class*="titleAndProps"] > div:first-child');
+            const targetButton = row.querySelector('button.commit-button, button[aria-label^="Pickpocket"]');
+            if (!nameElement || !targetButton) {
+                return;
+            }
+
+            const name = nameElement.textContent.trim();
+            const isEnabled = targetButton.getAttribute('aria-disabled') === 'false';
+            if (menuSelected.some(target => name.includes(target)) && isEnabled) {
+                targetButton.style.display = "";
+                if (targetButton.dataset.pickpocketBound === 'true') {
+                    if (actionContainer && targetButton.parentElement !== actionContainer) {
+                        actionContainer.appendChild(targetButton);
+                    }
+                    return;
+                }
+
                 const originalRowColor = row.style.backgroundColor;
                 const originalButtonParent = targetButton.parentNode;
                 row.style.borderLeft = `3px solid #37b24d`;
                 row.style.backgroundColor = 'darkgreen';
-                row.querySelector('div .childrenWrapper___h2Sw5').style.color = '#37b24d';
+                const buttonContent = row.querySelector('[class*="childrenWrapper"]');
+                if (buttonContent) {
+                    buttonContent.style.color = '#37b24d';
+                }
                 document.body.style.backgroundColor = 'red';
+                targetButton.dataset.pickpocketBound = 'true';
 
                 // clear color after clicked
                 targetButton.addEventListener('click', () => {
@@ -95,8 +113,10 @@
                     originalButtonParent.replaceChildren(targetButton);
                     targetButton.style.display = "none";
 
-                    setInterval(() => {
-                        moveOutcomeResult();
+                    const resultInterval = setInterval(() => {
+                        if (moveOutcomeResult()) {
+                            clearInterval(resultInterval);
+                        }
                     }, 500);
                 });
 
@@ -108,8 +128,10 @@
                 }
                 document.addEventListener('keydown', keyPressHandler);
                 // move button to header
-                actionContainer.appendChild(targetButton);
-                targetButton.style.width = "130px";
+                if (actionContainer) {
+                    actionContainer.appendChild(targetButton);
+                    targetButton.style.width = "130px";
+                }
 
                 if (menuSelected.includes('Enable Sound')) {
                     sound.play();
@@ -121,17 +143,22 @@
     };
 
     function moveOutcomeResult() {
-        const outcomeWrappers = document.querySelectorAll(".outcomeWrapper___I8dXb");
-        outcomeWrappers.forEach(wrapper => {
+        if (!resultContainer) {
+            return false;
+        }
+
+        const outcomeWrappers = document.querySelectorAll('[class*="outcomeWrapper"]');
+        for (const wrapper of outcomeWrappers) {
             if (wrapper.innerHTML !== "") {
-                const rewardElement = wrapper.querySelector(".outcomeReward___E34U7");
+                const rewardElement = wrapper.querySelector('[class*="outcomeReward"]');
                 if (rewardElement) {
                     resultContainer.innerHTML = '';
                     resultContainer.appendChild(rewardElement);
-                    clearInterval(moveOutcomeResult);
+                    return true;
                 }
             }
-        });
+        }
+        return false;
     }
 
     setInterval(() => {
