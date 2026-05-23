@@ -1,6 +1,6 @@
 ---
 title: "Fight: Fix Armor Overlay Position"
-status: Ready-to-review
+status: Reviewed
 created: 2026-05-23
 doc_type: change
 last_reviewed: 2026-05-23
@@ -44,3 +44,12 @@ Not doing:
   - Replace `insertBefore(playerWindow)` with `playerWindow.css('position', 'relative').prepend(info)`
   - Set overlay CSS: `position: absolute`, `top: 0`, `left: 0`, `width: 100%`, `z-index: 100`, `background: rgba(0,0,0,0.45)`, `pointer-events: none`
   - Acceptance: armor text appears on top of the enemy model; model is still visible behind the text; no layout shift occurs.
+
+## Review Issues
+
+No issues found. Implementation matches spec on all checked criteria:
+- `#armor-info` is removed before re-insertion (line 49), preventing duplicates.
+- Overlay CSS matches spec: `position: absolute`, `top: 0`, `left: 0`, `width: 100%`, `zIndex: 100`, `pointerEvents: none`, `background: rgba(0,0,0,0.45)`.
+- `prependTo(playerWindow.css('position', 'relative'))` is correct jQuery — `.css()` setter returns the jQuery object, so `.prependTo()` receives the right target.
+- No explicit `height` is set, so the overlay is content-sized and covers only the top of the model.
+- All tasks marked [x]; status updated to Reviewed.
