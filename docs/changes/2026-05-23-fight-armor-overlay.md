@@ -45,7 +45,7 @@ Not doing:
 
 ## Tasks
 
-- [ ] T1: Add `analyzeDefenderArmor(retries)` to `fight-shortcuts.js`
+- [x] T1: Add `analyzeDefenderArmor(retries)` to `fight-shortcuts.js`
   - Find defender player div: `.player___vjxP2` that contains `#weapon_main.defender___l1ETt`
   - Read `<area>` elements from defender's `<map>`, deduplicate by `alt` attribute
   - Detect armor type from first matched `title`: contains "assault" / "riot" / "vanguard"

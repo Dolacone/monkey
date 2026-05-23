@@ -11,6 +11,61 @@
 // ==/UserScript==
 
 
+function analyzeDefenderArmor(retries) {
+    const defenderPlayer = $(".player___vjxP2").has("#weapon_main.defender___l1ETt");
+    if (!defenderPlayer.length) return;
+
+    const areas = defenderPlayer.find("map area");
+    if (!areas.length && retries > 0) {
+        setTimeout(() => analyzeDefenderArmor(retries - 1), 500);
+        return;
+    }
+
+    const seen = {};
+    const pieces = [];
+    let armorType = null;
+
+    areas.each(function () {
+        const part = $(this).attr('alt');
+        const name = $(this).attr('title');
+        if (part && name && !seen[part]) {
+            seen[part] = true;
+            pieces.push(`${part}: ${name}`);
+            if (!armorType) {
+                const lower = name.toLowerCase();
+                if (lower.includes('assault')) armorType = 'assault';
+                else if (lower.includes('riot')) armorType = 'riot';
+                else if (lower.includes('vanguard')) armorType = 'vanguard';
+            }
+        }
+    });
+
+    const playerWindow = defenderPlayer.find(".playerWindow___sDs7q");
+    $('#armor-info').remove();
+
+    const infoText = pieces.length ? pieces.join(' | ') : 'No armor';
+    $('<div id="armor-info"></div>').css({
+        color: 'white',
+        fontSize: '11px',
+        padding: '2px 4px',
+        background: 'rgba(0,0,0,0.7)',
+        textAlign: 'center',
+        pointerEvents: 'none',
+    }).text(infoText).insertBefore(playerWindow);
+
+    const attackerPlayer = $(".player___vjxP2").not(defenderPlayer);
+    attackerPlayer.find('#weapon_main, #weapon_second, #weapon_melee, #weapon_temp')
+        .css('background-color', '');
+
+    if (armorType === 'assault') {
+        attackerPlayer.find('#weapon_main, #weapon_second').css('background-color', 'rgba(0, 120, 255, 0.4)');
+    } else if (armorType === 'riot') {
+        attackerPlayer.find('#weapon_melee').css('background-color', 'rgba(0, 120, 255, 0.4)');
+    } else if (armorType === 'vanguard') {
+        attackerPlayer.find('#weapon_temp').css('background-color', 'rgba(0, 120, 255, 0.4)');
+    }
+}
+
 function fightKeypressHandler(event) {
     let handled = true;
     if (event.key === ' ') {
