@@ -1,9 +1,10 @@
 ---
 title: "Fight: Real-time Combat Log Overlay"
-status: Issues-confirmed
+status: Reviewed
 created: 2026-05-24
 doc_type: change
 last_reviewed: 2026-05-24
+last_reviewed_pass: 2
 source_paths:
   - fight-shortcuts.js
 scope: "Observe the live fight action log and display a real-time parsed summary (hits, misses, crits, joins) in the existing #armor-info overlay; new entries prepend above armor piece divs."
@@ -88,4 +89,6 @@ Parallelizable: T1 and T2 in parallel; T3 must follow both.
 
 ## Review Issues
 
-- [ ] 🟡 [Major]: `startLogObserver()` is called at the end of `analyzeDefenderArmor` (line 68), but both `elements-combat.html` and `elements-naked.html` confirm that `ul[class*="list___"]` does not exist in the DOM at the time the armor analysis completes — the log list only appears once fight action begins. `startLogObserver` silently returns on line 111 when `logList` is falsy, and since `fightAnalyzed` blocks any re-entry into `analyzeDefenderArmor`, the observer is never attached and no log entries are ever shown in the overlay. Fix: after confirming the `ul` is absent, fall back to a short MutationObserver on `document.body` to wait for `ul[class*="list___"]` to appear, then call `observe()` on it.
+- [x] ~~🟡 [Major]: `startLogObserver()` silently returned when `ul[class*="list___"]` was absent, causing the observer to never attach.~~ Fixed: `startLogObserver` now falls back to a `waitObserver` on `document.body` (`childList: true, subtree: true`) that disconnects itself and calls `attachTo()` once the log list appears. Logic is correct — `disconnect()` is called before `attachTo()`, preventing duplicate attachment.
+
+No remaining issues. All selectors verified against DOM samples. All tasks complete.
