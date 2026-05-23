@@ -48,8 +48,7 @@ function analyzeDefenderArmor(retries) {
     const playerWindow = defenderPlayer.find(".playerWindow___sDs7q");
     $('#armor-info').remove();
 
-    const infoText = pieces.length ? pieces.join('\n') : 'No armor';
-    $('<div id="armor-info"></div>').css({
+    const $info = $('<div id="armor-info"></div>').css({
         position: 'absolute',
         top: '0',
         left: '0',
@@ -58,12 +57,15 @@ function analyzeDefenderArmor(retries) {
         color: 'white',
         fontSize: '11px',
         padding: '2px 4px',
-        textAlign: 'center',
-        whiteSpace: 'pre',
+        textAlign: 'left',
         textShadow: '0 0 3px black',
         background: 'rgba(0,0,0,0.45)',
         pointerEvents: 'none',
-    }).text(infoText).prependTo(playerWindow.css('position', 'relative'));
+    }).prependTo(playerWindow.css('position', 'relative'));
+
+    (pieces.length ? pieces : ['No armor']).forEach(name => $('<div>').text(name).appendTo($info));
+
+    startLogObserver();
 
     const attackerPlayer = $(".player___vjxP2").not(defenderPlayer);
     attackerPlayer.find('#weapon_main, #weapon_second, #weapon_melee, #weapon_temp')
@@ -76,6 +78,64 @@ function analyzeDefenderArmor(retries) {
     } else if (armorType === 'vanguard') {
         attackerPlayer.find('#weapon_temp').css('box-shadow', 'inset 0 0 0 4px rgb(0, 120, 255)');
     }
+}
+
+function parseLogEntry(li) {
+    const $li = $(li);
+    const col1 = $li.find('span[class*="col1"]');
+    const isAttacker = col1.hasClass('color-1____8JuW');
+    const isDefender = col1.hasClass('color-2___iX1n6');
+    if (!isAttacker && !isDefender) return null;
+
+    const iconClass = $li.find('span[class*="attacking-events-"]').attr('class') || '';
+    if (/leave|grenade|slowed|speed/.test(iconClass)) return null;
+
+    if (iconClass.includes('attack-join')) {
+        const name = $li.find('span[class*="message"] a').first().text();
+        return { type: 'join', name };
+    }
+
+    const side = isAttacker ? 'attacker' : 'defender';
+    const $em = $li.find('span[class*="message"] em');
+    const damage = $em.length ? parseInt($em.text().replace(/,/g, ''), 10) : null;
+    const isCrit = iconClass.includes('critical-hit') || $li.find('span[class*="message"]').text().includes('critically hit');
+
+    if (side === 'defender' && !damage) return null;
+    if (side === 'attacker' && !damage) return { type: 'miss', side: 'attacker', damage: null, isCrit: false };
+
+    return { type: 'hit', side, damage, isCrit };
+}
+
+function startLogObserver() {
+    const logList = $('ul[class*="list___"]')[0];
+    if (!logList) return;
+
+    new MutationObserver(function (mutations) {
+        for (const mutation of mutations) {
+            for (const node of mutation.addedNodes) {
+                if (node.nodeType !== 1) continue;
+                const entry = parseLogEntry(node);
+                if (!entry) continue;
+
+                let text, color;
+                if (entry.type === 'join') {
+                    text = entry.name + ' joined';
+                    color = '#ff4';
+                } else if (entry.type === 'miss') {
+                    text = 'MISS';
+                    color = '#4f4';
+                } else if (entry.side === 'attacker') {
+                    text = entry.isCrit ? entry.damage + ' CRI' : String(entry.damage);
+                    color = '#4f4';
+                } else {
+                    text = entry.isCrit ? entry.damage + ' CRI' : String(entry.damage);
+                    color = '#f44';
+                }
+
+                $('<div>').text(text).css('color', color).prependTo('#armor-info');
+            }
+        }
+    }).observe(logList, { childList: true });
 }
 
 function fightKeypressHandler(event) {
