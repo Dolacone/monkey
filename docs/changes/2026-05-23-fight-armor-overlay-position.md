@@ -1,6 +1,6 @@
 ---
 title: "Fight: Fix Armor Overlay Position"
-status: Draft
+status: Ready-to-implement
 created: 2026-05-23
 doc_type: change
 last_reviewed: 2026-05-23
@@ -24,7 +24,7 @@ Rejected alternatives:
 ## Key Assumptions
 
 - `.playerWindow___sDs7q` can accept `position: relative` without breaking game layout.
-- A `z-index` of 100 is sufficient to appear above `.modelLayers___r0DfY` and `.armoursWrap___C3swY`.
+- A `z-index` of 100 is sufficient to appear above `.modelLayers___r0DfY` and `.armoursWrap___C3swY` — verified from static HTML samples: the highest inline z-index on any `.armourContainer___ftMzt` is 19 (elements-combat.html).
 - Semi-transparent background (`rgba(0,0,0,0.5)`) on the overlay text area is acceptable since it only covers the top portion of the model (not the whole window).
 
 ## MVP Scope / Not Doing
