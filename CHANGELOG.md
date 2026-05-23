@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-05-23 (2)
+
+### fight-shortcuts.js — Fix Armor Overlay Position
+
+Armor info text is now rendered as an absolute-positioned transparent overlay on top of the enemy model instead of a DOM-flow element before it, preventing the model from being displaced.
+
 ## 2026-05-23
 
 ### fight-shortcuts.js — Armor Overlay & Weapon Highlight
