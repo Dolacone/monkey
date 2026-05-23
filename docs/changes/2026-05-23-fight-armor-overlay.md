@@ -1,6 +1,6 @@
 ---
 title: "Fight: Armor Overlay & Weapon Highlight"
-status: Ready-to-review
+status: Reviewed
 created: 2026-05-23
 doc_type: change
 last_reviewed: 2026-05-23
@@ -63,3 +63,11 @@ Not doing:
 
 Dependency graph: T1 → T2 (T2 calls T1)
 Parallelizable: No (T2 requires T1 to exist)
+
+## Review Issues
+
+- [ ] Minor: `mutation.type === 'attributes'` and `mutation.attributeName === 'class'` checks (lines 186-187) are redundant — `attributeFilter: ['class']` already guarantees only attribute/class mutations reach the callback. Harmless but adds noise.
+- [ ] Minor: MutationObserver additionally checks `mutation.target.classList.contains('weaponSlot___Wq6XA')` (line 189), which is not specified in the change document. The extra guard is reasonable (avoids triggering on unrelated class changes that happen to include `attackStarted___KxAo_`), but it is an undocumented narrowing of the trigger condition.
+- [ ] Minor: When `defenderPlayer` is not found (line 18, `!defenderPlayer.length`), the function returns immediately without retrying. If there is a small DOM-update lag between `attackStarted___KxAo_` appearing and `defender___l1ETt` being applied, the analysis silently aborts rather than retrying. Given that the trigger is already "fight started", this window is likely tiny, but the silent bail-out is inconsistent with the retry design.
+- [ ] Minor: `$('#armor-info').remove()` (line 46) is a global selector rather than scoped to the defender player div. No real risk since the ID is self-inserted, but noted for consistency.
+- [ ] Note: No automated tests — acceptable for a userscript context.
