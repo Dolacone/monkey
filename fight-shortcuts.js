@@ -35,7 +35,7 @@ function analyzeDefenderArmor(retries) {
         const name = $(this).attr('title');
         if (part && name && !seen[part]) {
             seen[part] = true;
-            pieces.push(`${part}: ${name}`);
+            pieces.push(name);
             if (!armorType) {
                 const lower = name.toLowerCase();
                 if (lower.includes('assault')) armorType = 'assault';
@@ -48,26 +48,27 @@ function analyzeDefenderArmor(retries) {
     const playerWindow = defenderPlayer.find(".playerWindow___sDs7q");
     $('#armor-info').remove();
 
-    const infoText = pieces.length ? pieces.join(' | ') : 'No armor';
+    const infoText = pieces.length ? pieces.join('\n') : 'No armor';
     $('<div id="armor-info"></div>').css({
         color: 'white',
         fontSize: '11px',
         padding: '2px 4px',
-        background: 'rgba(0,0,0,0.7)',
         textAlign: 'center',
+        whiteSpace: 'pre',
+        textShadow: '0 0 3px black',
         pointerEvents: 'none',
     }).text(infoText).insertBefore(playerWindow);
 
     const attackerPlayer = $(".player___vjxP2").not(defenderPlayer);
     attackerPlayer.find('#weapon_main, #weapon_second, #weapon_melee, #weapon_temp')
-        .css('background-color', '');
+        .css('box-shadow', '');
 
     if (armorType === 'assault') {
-        attackerPlayer.find('#weapon_main, #weapon_second').css('background-color', 'rgba(0, 120, 255, 0.4)');
+        attackerPlayer.find('#weapon_main, #weapon_second').css('box-shadow', 'inset 0 0 0 4px rgb(0, 120, 255)');
     } else if (armorType === 'riot') {
-        attackerPlayer.find('#weapon_melee').css('background-color', 'rgba(0, 120, 255, 0.4)');
+        attackerPlayer.find('#weapon_melee').css('box-shadow', 'inset 0 0 0 4px rgb(0, 120, 255)');
     } else if (armorType === 'vanguard') {
-        attackerPlayer.find('#weapon_temp').css('background-color', 'rgba(0, 120, 255, 0.4)');
+        attackerPlayer.find('#weapon_temp').css('box-shadow', 'inset 0 0 0 4px rgb(0, 120, 255)');
     }
 }
 
