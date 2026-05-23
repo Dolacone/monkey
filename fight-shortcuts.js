@@ -122,12 +122,11 @@ function startLogObserver() {
                     } else if (entry.type === 'miss') {
                         text = 'MISS';
                         color = '#4f4';
-                    } else if (entry.side === 'attacker') {
-                        text = entry.isCrit ? entry.damage + ' CRI' : String(entry.damage);
-                        color = '#4f4';
                     } else {
-                        text = entry.isCrit ? entry.damage + ' CRI' : String(entry.damage);
-                        color = '#f44';
+                        // entry.type === 'hit'
+                        const dmg = entry.isCrit ? entry.damage + ' CRI' : String(entry.damage);
+                        if (entry.side === 'attacker') { text = dmg; color = '#4f4'; }
+                        else                           { text = dmg; color = '#f44'; }
                     }
 
                     $('<div>').text(text).css('color', color).prependTo('#armor-info');
@@ -146,61 +145,45 @@ function startLogObserver() {
     waitObserver.observe(document.body, { childList: true, subtree: true });
 }
 
-function fightKeypressHandler(event) {
-    let handled = true;
-    if (event.key === ' ') {
-        const fightButton = $("[class*='dialogButtons'] button.torn-btn");
+const WEAPON_KEYS = {
+    '1': '#weapon_main',
+    '2': '#weapon_second',
+    '3': '#weapon_melee',
+    '4': '#weapon_temp',
+};
 
-        if (fightButton.is(':visible')) {
-            fightButton.click();
+function clickIfVisible($el) {
+    if ($el.is(':visible')) $el.click();
+}
+
+function fightKeypressHandler(event) {
+    const key = event.key;
+    const lkey = key.toLowerCase();
+
+    if (key === ' ') {
+        const $fightBtn = $("[class*='dialogButtons'] button.torn-btn");
+        if ($fightBtn.is(':visible')) {
+            $fightBtn.click();
             if (!fightAnalyzed) {
                 fightAnalyzed = true;
                 analyzeDefenderArmor(5);
             }
         }
-    } else if (event.key === '1') {
-        const primaryElement = $("#weapon_main");
-        if (primaryElement.is(':visible')) {
-            primaryElement.click();
-        }
-    } else if (event.key === '2') {
-        const secondaryElement = $("#weapon_second");
-        if (secondaryElement.is(':visible')) {
-            secondaryElement.click();
-        }
-    } else if (event.key === '3') {
-        const meleeElement = $("#weapon_melee");
-        if (meleeElement.is(':visible')) {
-            meleeElement.click();
-        }
-    } else if (event.key === '4') {
-        const temporaryElement = $("#weapon_temp");
-        if (temporaryElement.is(':visible')) {
-            temporaryElement.click();
-        }
-    } else if (event.key.toLowerCase() === 'q') {
-        const leaveButton = $("button.torn-btn:contains('leave')");
-        if (leaveButton.is(':visible')) {
-            leaveButton.click();
-        }
-    } else if (event.key.toLowerCase() === 'w') {
-        const mugButton = $("button.torn-btn:contains('mug')");
-        if (mugButton.is(':visible')) {
-            mugButton.click();
-        }
-    } else if (event.key.toLowerCase() === 'e') {
-        const hospitalizeButton = $("button.torn-btn:contains('hospitalize')");
-        if (hospitalizeButton.is(':visible')) {
-            hospitalizeButton.click();
-        }
-    } else if (event.key.toLowerCase() === 'b') {
-        const urlParams = new URLSearchParams(window.location.search);
-        const id = urlParams.get('user2ID');
-        window.location.href = "/profiles.php?XID=" + id
+    } else if (WEAPON_KEYS[key]) {
+        clickIfVisible($(WEAPON_KEYS[key]));
+    } else if (lkey === 'q') {
+        clickIfVisible($("button.torn-btn:contains('leave')"));
+    } else if (lkey === 'w') {
+        clickIfVisible($("button.torn-btn:contains('mug')"));
+    } else if (lkey === 'e') {
+        clickIfVisible($("button.torn-btn:contains('hospitalize')"));
+    } else if (lkey === 'b') {
+        const id = new URLSearchParams(window.location.search).get('user2ID');
+        window.location.href = "/profiles.php?XID=" + id;
     } else {
-        handled = false;
+        return false;
     }
-    return handled;
+    return true;
 }
 
 function companyKeypressHandler(event) {
