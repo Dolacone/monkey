@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-05-24
+
+### fight-shortcuts.js v1.2.0 — Real-time Combat Log Overlay
+
+During a fight, each new action log entry is parsed and displayed as a compact color-coded line at the top of the armor overlay on the enemy model:
+- Attacker miss → `MISS` (green)
+- Attacker hit → damage number (green)
+- Attacker crit → `1715 CRI` (green)
+- Defender hit → damage number (red)
+- Defender crit → `1699 CRI` (red)
+- Player join → `PLAYERNAME joined` (yellow)
+
+New entries prepend above armor info; armor piece divs shift down naturally. Uses MutationObserver on the log list; falls back to waiting for the list to appear if not yet in DOM.
+
 ## 2026-05-23 (2)
 
 ### fight-shortcuts.js — Fix Armor Overlay Position
