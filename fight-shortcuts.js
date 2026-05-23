@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Torn: Shortcuts
-// @version      1.0.0
+// @version      1.1.0
 // @description  Faster actions
 // @author       Dolacone
 // @match        https://www.torn.com/page.php?sid=attack&user2ID=*// @match        https://www.torn.com/companies.php*
