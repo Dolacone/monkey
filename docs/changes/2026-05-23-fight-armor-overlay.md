@@ -1,6 +1,6 @@
 ---
 title: "Fight: Armor Overlay & Weapon Highlight"
-status: Reviewed
+status: Refactored
 created: 2026-05-23
 doc_type: change
 last_reviewed: 2026-05-23
