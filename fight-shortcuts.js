@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         Torn: Shortcuts
-// @version      1.2.0
+// @version      1.2.1
 // @description  Faster actions
 // @author       Dolacone
-// @match        https://www.torn.com/page.php?sid=attack&user2ID=*// @match        https://www.torn.com/companies.php*
+// @match        https://www.torn.com/page.php?sid=attack&user2ID=*
 // @downloadURL  https://raw.githubusercontent.com/Dolacone/monkey/refs/heads/master/fight-shortcuts.js
 // @updateURL    https://raw.githubusercontent.com/Dolacone/monkey/refs/heads/master/fight-shortcuts.js
 // @icon
@@ -186,48 +186,8 @@ function fightKeypressHandler(event) {
     return true;
 }
 
-function companyKeypressHandler(event) {
-    let handled = true;
-    if (event.key === ' ') {
-        if (!window.location.href.includes('option=funds')) {
-            const fundsTab = $('a[href="#funds"]');
-            if (fundsTab.length) {
-                fundsTab[0].click();
-            }
-        } else {
-            const inputMoney = $('.input-money');
-            if (inputMoney.length) {
-                if (inputMoney.val().trim() === '') {
-                    const symbol = $('.input-money-symbol');
-                    if (symbol.length) {
-                        symbol.click();
-                    }
-                } else {
-                    const depositBtn = $("button.torn-btn").filter(function () {
-                        return $(this).text().trim().toUpperCase() === 'DEPOSIT';
-                    });
-                    if (depositBtn.length) {
-                        depositBtn.click();
-                    }
-                }
-            }
-        }
-    } else {
-        handled = false;
-    }
-    return handled;
-}
-
 function keypressHandler(event) {
-    let handled = false;
-
-    if (window.location.href.includes('companies.php')) {
-        handled = companyKeypressHandler(event);
-    } else {
-        handled = fightKeypressHandler(event);
-    }
-
-    if (handled) {
+    if (fightKeypressHandler(event)) {
         event.preventDefault();
     }
 }
@@ -235,7 +195,6 @@ function keypressHandler(event) {
 (function () {
     'use strict';
 
-    // 初始化背景顏色 (目前 fight 跟 company 頁面都設為 brown)
     document.body.style.backgroundColor = 'brown';
 
     document.addEventListener('keypress', keypressHandler);
