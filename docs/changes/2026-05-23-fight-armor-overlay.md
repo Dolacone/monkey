@@ -1,6 +1,6 @@
 ---
 title: "Fight: Armor Overlay & Weapon Highlight"
-status: Draft
+status: Ready-to-implement
 created: 2026-05-23
 doc_type: change
 last_reviewed: 2026-05-23
@@ -45,7 +45,21 @@ Not doing:
 
 ## Tasks
 
-- [ ] T1: Add `analyzeDefenderArmor(retries)` function — reads `<area>` elements from defender's model map, detects armor type, inserts text overlay before `playerWindow___sDs7q`, highlights attacker weapons. Retries up to 5× if areas are empty.
-- [ ] T2: Add MutationObserver in IIFE — watches for `attackStarted___KxAo_` class on any `.weaponSlot___Wq6XA` to trigger `analyzeDefenderArmor`. Also hook into existing space-keypress fightButton.click() path as a secondary trigger (idempotent).
+- [ ] T1: Add `analyzeDefenderArmor(retries)` to `fight-shortcuts.js`
+  - Find defender player div: `.player___vjxP2` that contains `#weapon_main.defender___l1ETt`
+  - Read `<area>` elements from defender's `<map>`, deduplicate by `alt` attribute
+  - Detect armor type from first matched `title`: contains "assault" / "riot" / "vanguard"
+  - Remove existing `#armor-info` div; insert new one before `.playerWindow___sDs7q` with text `"Part: Name | ..."` or `"No armor"`
+  - Clear previous weapon highlights on attacker player div; apply blue bg (`rgba(0,120,255,0.4)`) to: assault→`#weapon_main,#weapon_second`; riot→`#weapon_melee`; vanguard→`#weapon_temp`
+  - If `<area>` elements are absent and `retries > 0`: call `setTimeout(() => analyzeDefenderArmor(retries - 1), 500)`
+  - Acceptance: given elements-combat.html structure, function outputs correct armor text and weapon highlights; given elements-naked.html, outputs "No armor" with no highlights.
 
-Dependency: T2 depends on T1.
+- [ ] T2: Add MutationObserver in IIFE to `fight-shortcuts.js`
+  - Observe `document.body` with `{ attributes: true, attributeFilter: ['class'], subtree: true }` to detect class changes
+  - On any mutation where `mutation.target` gains class `attackStarted___KxAo_` and `fightAnalyzed` flag is false: set flag to true, call `analyzeDefenderArmor(5)`
+  - `fightAnalyzed` flag starts as `false`; since each fight is a separate page load (URL: `/page.php?sid=attack&user2ID=*`), the flag resets naturally on page load — no in-flight reset logic needed
+  - Also call `analyzeDefenderArmor(5)` in existing space-keypress path after `fightButton.click()` (guarded by same flag)
+  - Acceptance (manual in-browser): pressing space triggers analysis; clicking Start fight button with mouse also triggers analysis; analysis runs only once per fight session.
+
+Dependency graph: T1 → T2 (T2 calls T1)
+Parallelizable: No (T2 requires T1 to exist)
