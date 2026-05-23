@@ -1,6 +1,6 @@
 ---
 title: "Fight: Real-time Combat Log Overlay"
-status: Reviewed
+status: Refactored
 created: 2026-05-24
 doc_type: change
 last_reviewed: 2026-05-24
