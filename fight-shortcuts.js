@@ -11,6 +11,8 @@
 // ==/UserScript==
 
 
+let fightAnalyzed = false;
+
 function analyzeDefenderArmor(retries) {
     const defenderPlayer = $(".player___vjxP2").has("#weapon_main.defender___l1ETt");
     if (!defenderPlayer.length) return;
@@ -73,6 +75,10 @@ function fightKeypressHandler(event) {
 
         if (fightButton.is(':visible')) {
             fightButton.click();
+            if (!fightAnalyzed) {
+                fightAnalyzed = true;
+                analyzeDefenderArmor(5);
+            }
         }
     } else if (event.key === '1') {
         const primaryElement = $("#weapon_main");
@@ -172,4 +178,21 @@ function keypressHandler(event) {
     document.body.style.backgroundColor = 'brown';
 
     document.addEventListener('keypress', keypressHandler);
+
+    const observer = new MutationObserver(function (mutations) {
+        if (fightAnalyzed) return;
+        for (const mutation of mutations) {
+            if (
+                mutation.type === 'attributes' &&
+                mutation.attributeName === 'class' &&
+                mutation.target.classList.contains('attackStarted___KxAo_') &&
+                mutation.target.classList.contains('weaponSlot___Wq6XA')
+            ) {
+                fightAnalyzed = true;
+                analyzeDefenderArmor(5);
+                break;
+            }
+        }
+    });
+    observer.observe(document.body, { attributes: true, attributeFilter: ['class'], subtree: true });
 })();

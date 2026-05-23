@@ -1,6 +1,6 @@
 ---
 title: "Fight: Armor Overlay & Weapon Highlight"
-status: Ready-to-implement
+status: Ready-to-review
 created: 2026-05-23
 doc_type: change
 last_reviewed: 2026-05-23
@@ -54,7 +54,7 @@ Not doing:
   - If `<area>` elements are absent and `retries > 0`: call `setTimeout(() => analyzeDefenderArmor(retries - 1), 500)`
   - Acceptance: given elements-combat.html structure, function outputs correct armor text and weapon highlights; given elements-naked.html, outputs "No armor" with no highlights.
 
-- [ ] T2: Add MutationObserver in IIFE to `fight-shortcuts.js`
+- [x] T2: Add MutationObserver in IIFE to `fight-shortcuts.js`
   - Observe `document.body` with `{ attributes: true, attributeFilter: ['class'], subtree: true }` to detect class changes
   - On any mutation where `mutation.target` gains class `attackStarted___KxAo_` and `fightAnalyzed` flag is false: set flag to true, call `analyzeDefenderArmor(5)`
   - `fightAnalyzed` flag starts as `false`; since each fight is a separate page load (URL: `/page.php?sid=attack&user2ID=*`), the flag resets naturally on page load — no in-flight reset logic needed
