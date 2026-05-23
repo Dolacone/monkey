@@ -1,6 +1,6 @@
 ---
 title: "Fight: Fix Armor Overlay Position"
-status: Ready-to-implement
+status: Ready-to-review
 created: 2026-05-23
 doc_type: change
 last_reviewed: 2026-05-23
@@ -40,7 +40,7 @@ Not doing:
 
 ## Tasks
 
-- [ ] T1: Change `#armor-info` insertion in `analyzeDefenderArmor` to absolute-positioned overlay inside `.playerWindow___sDs7q`
+- [x] T1: Change `#armor-info` insertion in `analyzeDefenderArmor` to absolute-positioned overlay inside `.playerWindow___sDs7q`
   - Replace `insertBefore(playerWindow)` with `playerWindow.css('position', 'relative').prepend(info)`
   - Set overlay CSS: `position: absolute`, `top: 0`, `left: 0`, `width: 100%`, `z-index: 100`, `background: rgba(0,0,0,0.45)`, `pointer-events: none`
   - Acceptance: armor text appears on top of the enemy model; model is still visible behind the text; no layout shift occurs.

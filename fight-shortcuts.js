@@ -50,14 +50,20 @@ function analyzeDefenderArmor(retries) {
 
     const infoText = pieces.length ? pieces.join('\n') : 'No armor';
     $('<div id="armor-info"></div>').css({
+        position: 'absolute',
+        top: '0',
+        left: '0',
+        width: '100%',
+        zIndex: 100,
         color: 'white',
         fontSize: '11px',
         padding: '2px 4px',
         textAlign: 'center',
         whiteSpace: 'pre',
         textShadow: '0 0 3px black',
+        background: 'rgba(0,0,0,0.45)',
         pointerEvents: 'none',
-    }).text(infoText).insertBefore(playerWindow);
+    }).text(infoText).prependTo(playerWindow.css('position', 'relative'));
 
     const attackerPlayer = $(".player___vjxP2").not(defenderPlayer);
     attackerPlayer.find('#weapon_main, #weapon_second, #weapon_melee, #weapon_temp')
