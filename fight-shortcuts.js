@@ -107,35 +107,43 @@ function parseLogEntry(li) {
 }
 
 function startLogObserver() {
-    const logList = $('ul[class*="list___"]')[0];
-    if (!logList) return;
+    function attachTo(logList) {
+        new MutationObserver(function (mutations) {
+            for (const mutation of mutations) {
+                for (const node of mutation.addedNodes) {
+                    if (node.nodeType !== 1) continue;
+                    const entry = parseLogEntry(node);
+                    if (!entry) continue;
 
-    new MutationObserver(function (mutations) {
-        for (const mutation of mutations) {
-            for (const node of mutation.addedNodes) {
-                if (node.nodeType !== 1) continue;
-                const entry = parseLogEntry(node);
-                if (!entry) continue;
+                    let text, color;
+                    if (entry.type === 'join') {
+                        text = entry.name + ' joined';
+                        color = '#ff4';
+                    } else if (entry.type === 'miss') {
+                        text = 'MISS';
+                        color = '#4f4';
+                    } else if (entry.side === 'attacker') {
+                        text = entry.isCrit ? entry.damage + ' CRI' : String(entry.damage);
+                        color = '#4f4';
+                    } else {
+                        text = entry.isCrit ? entry.damage + ' CRI' : String(entry.damage);
+                        color = '#f44';
+                    }
 
-                let text, color;
-                if (entry.type === 'join') {
-                    text = entry.name + ' joined';
-                    color = '#ff4';
-                } else if (entry.type === 'miss') {
-                    text = 'MISS';
-                    color = '#4f4';
-                } else if (entry.side === 'attacker') {
-                    text = entry.isCrit ? entry.damage + ' CRI' : String(entry.damage);
-                    color = '#4f4';
-                } else {
-                    text = entry.isCrit ? entry.damage + ' CRI' : String(entry.damage);
-                    color = '#f44';
+                    $('<div>').text(text).css('color', color).prependTo('#armor-info');
                 }
-
-                $('<div>').text(text).css('color', color).prependTo('#armor-info');
             }
-        }
-    }).observe(logList, { childList: true });
+        }).observe(logList, { childList: true });
+    }
+
+    const logList = $('ul[class*="list___"]')[0];
+    if (logList) { attachTo(logList); return; }
+
+    const waitObserver = new MutationObserver(function () {
+        const found = $('ul[class*="list___"]')[0];
+        if (found) { waitObserver.disconnect(); attachTo(found); }
+    });
+    waitObserver.observe(document.body, { childList: true, subtree: true });
 }
 
 function fightKeypressHandler(event) {
