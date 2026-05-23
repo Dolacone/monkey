@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Torn: Shortcuts
-// @version      1.1.2
+// @version      1.2.0
 // @description  Faster actions
 // @author       Dolacone
 // @match        https://www.torn.com/page.php?sid=attack&user2ID=*// @match        https://www.torn.com/companies.php*
@@ -48,8 +48,7 @@ function analyzeDefenderArmor(retries) {
     const playerWindow = defenderPlayer.find(".playerWindow___sDs7q");
     $('#armor-info').remove();
 
-    const infoText = pieces.length ? pieces.join('\n') : 'No armor';
-    $('<div id="armor-info"></div>').css({
+    const $info = $('<div id="armor-info"></div>').css({
         position: 'absolute',
         top: '0',
         left: '0',
@@ -58,12 +57,15 @@ function analyzeDefenderArmor(retries) {
         color: 'white',
         fontSize: '11px',
         padding: '2px 4px',
-        textAlign: 'center',
-        whiteSpace: 'pre',
+        textAlign: 'left',
         textShadow: '0 0 3px black',
         background: 'rgba(0,0,0,0.45)',
         pointerEvents: 'none',
-    }).text(infoText).prependTo(playerWindow.css('position', 'relative'));
+    }).prependTo(playerWindow.css('position', 'relative'));
+
+    (pieces.length ? pieces : ['No armor']).forEach(name => $('<div>').text(name).appendTo($info));
+
+    startLogObserver();
 
     const attackerPlayer = $(".player___vjxP2").not(defenderPlayer);
     attackerPlayer.find('#weapon_main, #weapon_second, #weapon_melee, #weapon_temp')
@@ -78,61 +80,110 @@ function analyzeDefenderArmor(retries) {
     }
 }
 
-function fightKeypressHandler(event) {
-    let handled = true;
-    if (event.key === ' ') {
-        const fightButton = $("[class*='dialogButtons'] button.torn-btn");
+function parseLogEntry(li) {
+    const $li = $(li);
+    const col1 = $li.find('span[class*="col1"]');
+    const isAttacker = col1.hasClass('color-1____8JuW');
+    const isDefender = col1.hasClass('color-2___iX1n6');
+    if (!isAttacker && !isDefender) return null;
 
-        if (fightButton.is(':visible')) {
-            fightButton.click();
+    const iconClass = $li.find('span[class*="attacking-events-"]').attr('class') || '';
+    if (/leave|grenade|slowed|speed/.test(iconClass)) return null;
+
+    if (iconClass.includes('attack-join')) {
+        const name = $li.find('span[class*="message"] a').first().text();
+        return { type: 'join', name };
+    }
+
+    const side = isAttacker ? 'attacker' : 'defender';
+    const $em = $li.find('span[class*="message"] em');
+    const damage = $em.length ? parseInt($em.text().replace(/,/g, ''), 10) : null;
+    const isCrit = iconClass.includes('critical-hit') || $li.find('span[class*="message"]').text().includes('critically hit');
+
+    if (side === 'defender' && !damage) return null;
+    if (side === 'attacker' && !damage) return { type: 'miss', side: 'attacker', damage: null, isCrit: false };
+
+    return { type: 'hit', side, damage, isCrit };
+}
+
+function startLogObserver() {
+    function attachTo(logList) {
+        new MutationObserver(function (mutations) {
+            for (const mutation of mutations) {
+                for (const node of mutation.addedNodes) {
+                    if (node.nodeType !== 1) continue;
+                    const entry = parseLogEntry(node);
+                    if (!entry) continue;
+
+                    let text, color;
+                    if (entry.type === 'join') {
+                        text = entry.name + ' joined';
+                        color = '#ff4';
+                    } else if (entry.type === 'miss') {
+                        text = 'MISS';
+                        color = '#4f4';
+                    } else {
+                        // entry.type === 'hit'
+                        const dmg = entry.isCrit ? entry.damage + ' CRI' : String(entry.damage);
+                        if (entry.side === 'attacker') { text = dmg; color = '#4f4'; }
+                        else                           { text = dmg; color = '#f44'; }
+                    }
+
+                    $('<div>').text(text).css('color', color).prependTo('#armor-info');
+                }
+            }
+        }).observe(logList, { childList: true });
+    }
+
+    const logList = $('ul[class*="list___"]')[0];
+    if (logList) { attachTo(logList); return; }
+
+    const waitObserver = new MutationObserver(function () {
+        const found = $('ul[class*="list___"]')[0];
+        if (found) { waitObserver.disconnect(); attachTo(found); }
+    });
+    waitObserver.observe(document.body, { childList: true, subtree: true });
+}
+
+const WEAPON_KEYS = {
+    '1': '#weapon_main',
+    '2': '#weapon_second',
+    '3': '#weapon_melee',
+    '4': '#weapon_temp',
+};
+
+function clickIfVisible($el) {
+    if ($el.is(':visible')) $el.click();
+}
+
+function fightKeypressHandler(event) {
+    const key = event.key;
+    const lkey = key.toLowerCase();
+
+    if (key === ' ') {
+        const $fightBtn = $("[class*='dialogButtons'] button.torn-btn");
+        if ($fightBtn.is(':visible')) {
+            $fightBtn.click();
             if (!fightAnalyzed) {
                 fightAnalyzed = true;
                 analyzeDefenderArmor(5);
             }
         }
-    } else if (event.key === '1') {
-        const primaryElement = $("#weapon_main");
-        if (primaryElement.is(':visible')) {
-            primaryElement.click();
-        }
-    } else if (event.key === '2') {
-        const secondaryElement = $("#weapon_second");
-        if (secondaryElement.is(':visible')) {
-            secondaryElement.click();
-        }
-    } else if (event.key === '3') {
-        const meleeElement = $("#weapon_melee");
-        if (meleeElement.is(':visible')) {
-            meleeElement.click();
-        }
-    } else if (event.key === '4') {
-        const temporaryElement = $("#weapon_temp");
-        if (temporaryElement.is(':visible')) {
-            temporaryElement.click();
-        }
-    } else if (event.key.toLowerCase() === 'q') {
-        const leaveButton = $("button.torn-btn:contains('leave')");
-        if (leaveButton.is(':visible')) {
-            leaveButton.click();
-        }
-    } else if (event.key.toLowerCase() === 'w') {
-        const mugButton = $("button.torn-btn:contains('mug')");
-        if (mugButton.is(':visible')) {
-            mugButton.click();
-        }
-    } else if (event.key.toLowerCase() === 'e') {
-        const hospitalizeButton = $("button.torn-btn:contains('hospitalize')");
-        if (hospitalizeButton.is(':visible')) {
-            hospitalizeButton.click();
-        }
-    } else if (event.key.toLowerCase() === 'b') {
-        const urlParams = new URLSearchParams(window.location.search);
-        const id = urlParams.get('user2ID');
-        window.location.href = "/profiles.php?XID=" + id
+    } else if (WEAPON_KEYS[key]) {
+        clickIfVisible($(WEAPON_KEYS[key]));
+    } else if (lkey === 'q') {
+        clickIfVisible($("button.torn-btn:contains('leave')"));
+    } else if (lkey === 'w') {
+        clickIfVisible($("button.torn-btn:contains('mug')"));
+    } else if (lkey === 'e') {
+        clickIfVisible($("button.torn-btn:contains('hospitalize')"));
+    } else if (lkey === 'b') {
+        const id = new URLSearchParams(window.location.search).get('user2ID');
+        window.location.href = "/profiles.php?XID=" + id;
     } else {
-        handled = false;
+        return false;
     }
-    return handled;
+    return true;
 }
 
 function companyKeypressHandler(event) {
