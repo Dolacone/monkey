@@ -15,7 +15,10 @@ let fightAnalyzed = false;
 
 function analyzeDefenderArmor(retries) {
     const defenderPlayer = $(".player___vjxP2").has("#weapon_main.defender___l1ETt");
-    if (!defenderPlayer.length) return;
+    if (!defenderPlayer.length) {
+        if (retries > 0) setTimeout(() => analyzeDefenderArmor(retries - 1), 500);
+        return;
+    }
 
     const areas = defenderPlayer.find("map area");
     if (!areas.length && retries > 0) {
@@ -183,8 +186,6 @@ function keypressHandler(event) {
         if (fightAnalyzed) return;
         for (const mutation of mutations) {
             if (
-                mutation.type === 'attributes' &&
-                mutation.attributeName === 'class' &&
                 mutation.target.classList.contains('attackStarted___KxAo_') &&
                 mutation.target.classList.contains('weaponSlot___Wq6XA')
             ) {
