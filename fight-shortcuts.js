@@ -4,6 +4,7 @@
 // @description  Faster actions
 // @author       Dolacone
 // @match        https://www.torn.com/page.php?sid=attack&user2ID=*
+// @match        https://www.torn.com/item.php
 // @downloadURL  https://raw.githubusercontent.com/Dolacone/monkey/refs/heads/master/fight-shortcuts.js
 // @updateURL    https://raw.githubusercontent.com/Dolacone/monkey/refs/heads/master/fight-shortcuts.js
 // @icon
@@ -145,6 +146,82 @@ function startLogObserver() {
     waitObserver.observe(document.body, { childList: true, subtree: true });
 }
 
+const LOADOUT_KEYS = { '1': 0, '2': 1, '3': 2, '4': 3, 'q': 4, 'w': 5, 'e': 6, 'r': 7 };
+
+let slotObserver = null;
+
+function highlightActiveSlot() {
+    const root = document.querySelector('#loadoutsRoot');
+    if (!root) return;
+    root.querySelectorAll('li[class*="slot___"]').forEach(function (li) {
+        if (li.className.includes('current')) {
+            li.style.background = '#00ff88';
+            li.style.color = '#000';
+        } else {
+            li.style.background = '';
+            li.style.color = '';
+        }
+    });
+}
+
+function detachSlotObserver() {
+    if (slotObserver) { slotObserver.disconnect(); slotObserver = null; }
+    const root = document.querySelector('#loadoutsRoot');
+    if (root) root.querySelectorAll('li[class*="slot___"]').forEach(function (li) {
+        li.style.background = '';
+        li.style.color = '';
+    });
+}
+
+function attachSlotObserver() {
+    highlightActiveSlot();
+    const root = document.querySelector('#loadoutsRoot');
+    if (!root) return;
+    const ul = root.querySelector('ul[class*="slots"]');
+    if (!ul) { setTimeout(attachSlotObserver, 0); return; }
+    slotObserver = new MutationObserver(highlightActiveSlot);
+    slotObserver.observe(ul, { attributes: true, attributeFilter: ['class'], subtree: true });
+}
+
+function initLoadoutSwitcher() {
+    let loadoutPresent = false;
+    let savedBg = '';
+    let loadoutKeyHandler = null;
+
+    function loadoutKeydown(event) {
+        if (event.target.closest('input, textarea, select, [contenteditable]')) return;
+        const idx = LOADOUT_KEYS[event.key];
+        if (idx === undefined) return;
+        const root = document.querySelector('#loadoutsRoot');
+        if (!root) return;
+        const slots = root.querySelectorAll('li[class*="slot___"]');
+        const slot = slots[idx];
+        if (!slot) return;
+        const btn = slot.querySelector('button[aria-label="Equip loadout"]');
+        if (!btn || btn.disabled) return;
+        btn.click();
+        event.preventDefault();
+    }
+
+    new MutationObserver(function () {
+        const present = !!document.querySelector('#loadoutsRoot');
+        if (present === loadoutPresent) return;
+        loadoutPresent = present;
+        if (present) {
+            savedBg = document.body.style.backgroundColor;
+            document.body.style.backgroundColor = 'brown';
+            attachSlotObserver();
+            loadoutKeyHandler = loadoutKeydown;
+            document.addEventListener('keydown', loadoutKeyHandler);
+        } else {
+            document.body.style.backgroundColor = savedBg;
+            detachSlotObserver();
+            document.removeEventListener('keydown', loadoutKeyHandler);
+            loadoutKeyHandler = null;
+        }
+    }).observe(document.body, { childList: true, subtree: true });
+}
+
 const WEAPON_KEYS = {
     '1': '#weapon_main',
     '2': '#weapon_second',
@@ -194,6 +271,11 @@ function keypressHandler(event) {
 
 (function () {
     'use strict';
+
+    if (location.pathname.startsWith('/item.php')) {
+        initLoadoutSwitcher();
+        return;
+    }
 
     document.body.style.backgroundColor = 'brown';
 
