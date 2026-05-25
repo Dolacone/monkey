@@ -146,9 +146,8 @@ function startLogObserver() {
     waitObserver.observe(document.body, { childList: true, subtree: true });
 }
 
-const LOADOUT_KEYS = { '1': 0, '2': 1, '3': 2, '4': 3, 'q': 4, 'w': 5, 'e': 6, 'r': 7 };
-
 function initLoadoutSwitcher() {
+    const LOADOUT_KEYS = { '1': 0, '2': 1, '3': 2, '4': 3, 'q': 4, 'w': 5, 'e': 6, 'r': 7 };
     let loadoutPresent = false;
     let savedBg = '';
     let loadoutKeyHandler = null;
