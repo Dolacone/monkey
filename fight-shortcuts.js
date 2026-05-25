@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Torn: Shortcuts
-// @version      1.3.0
+// @version      1.3.1
 // @description  Faster actions
 // @author       Dolacone
 // @match        https://www.torn.com/page.php?sid=attack&user2ID=*
@@ -202,7 +202,7 @@ function initLoadoutSwitcher() {
     }
 
     new MutationObserver(function () {
-        const present = !!document.querySelector('#loadoutsRoot');
+        const present = !!document.querySelector('#loadoutsRoot ul[class*="slots"]');
         if (present === loadoutPresent) return;
         loadoutPresent = present;
         if (present) {
