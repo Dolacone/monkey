@@ -27,13 +27,14 @@ The IIFE entry point branches by page: item.php runs `initLoadoutSwitcher()` and
 
 ### Armor overlay
 
-Triggered when the fight starts (via space or mouse click on Start fight). Uses a MutationObserver watching for `attackStarted___KxAo_` class appearing on a weapon slot.
+Triggered on attack page load. The retry loop handles the defender model loading after the initial page shell.
 
 Once triggered, `analyzeDefenderArmor(retries)` runs:
 - Finds the defender player div (`.player___vjxP2` containing `#weapon_main.defender___l1ETt`)
 - Reads `<area>` elements inside the defender's `<map>` — each area's `alt` = body part, `title` = armor piece name
 - Deduplicates by body part (`alt`)
 - Retries up to 5× at 500ms intervals if areas are absent
+- If areas are still absent after retries, displays `No armor` and watches the defender model window for later `<area>` insertion; when areas arrive, re-renders the real armor pieces
 - Renders each piece as a `<div>` inside `#armor-info`, an absolute-positioned overlay prepended into `.playerWindow___sDs7q`
 - Detects armor type from first matched piece name: `assault` / `riot` / `vanguard`
 - Highlights attacker weapon slots with blue box-shadow: assault → 1+2, riot → 3, vanguard → 4
@@ -42,9 +43,9 @@ Once triggered, `analyzeDefenderArmor(retries)` runs:
 
 ### Real-time combat log overlay
 
-Started at the end of `analyzeDefenderArmor` (success path only, runs once per fight via `fightAnalyzed` flag).
+Started at the end of `analyzeDefenderArmor`, guarded so it attaches only once per fight page.
 
-`startLogObserver()` attaches a MutationObserver to `ul[class*="list___"]` (the React log list). If the list isn't in the DOM yet, a fallback observer waits on `document.body` until it appears.
+`startLogObserver()` attaches a MutationObserver to `ul[class*="list___"]` (the React log list). If the list isn't in the DOM yet, a fallback observer waits on `document.body` until it appears. Whenever the action log changes, the overlay log section is fully rebuilt from the current `li` rows in the same latest-first order as Torn's original action log.
 
 Each new `li` added to the log list is passed to `parseLogEntry(li)`, which returns:
 
@@ -57,7 +58,7 @@ Each new `li` added to the log list is passed to `parseLogEntry(li)`, which retu
 
 Crit detection: icon class contains `critical-hit` OR message text contains "critically hit" (covers both `attacking-events-critical-hit` mid-fight and `attacking-events-attack-win` on the final blow).
 
-Display in `#armor-info` (prepended above armor piece divs):
+Display in `#action-log-info` inside `#armor-info` (above armor piece divs):
 
 | Event | Text | Color |
 |-------|------|-------|
@@ -104,8 +105,7 @@ Game CSS class names use hashed suffixes (e.g. `list___Hip7j`, `player___vjxP2`)
 | `span[class*="col1"]` | Log entry action column | Substring match |
 | `span[class*="attacking-events-"]` | Log event type icon | Prefix is stable; full class name is event-specific |
 | `span[class*="message"]` | Log entry message text | Substring match |
-| `.attackStarted___KxAo_` | Fight start trigger | Hash may change; used in MutationObserver |
-| `.weaponSlot___Wq6XA` | Fight start guard | Hash may change |
+| `.weaponSlot___Wq6XA` | Weapon shortcut targets / defender weapon marker context | Hash may change |
 | `#loadoutsRoot` | Loadout panel container (item.php) | Stable ID |
 | `ul[class*="slots"]` | Loadout slots list (item.php) | Substring match, hash-tolerant |
 | `li[class*="slot___"]` | Individual loadout slot (item.php) | Substring match, hash-tolerant |

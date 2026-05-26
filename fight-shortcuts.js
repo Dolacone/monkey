@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Torn: Shortcuts
-// @version      1.3.1
+// @version      1.3.5
 // @description  Faster actions
 // @author       Dolacone
 // @match        https://www.torn.com/page.php?sid=attack&user2ID=*
@@ -12,7 +12,8 @@
 // ==/UserScript==
 
 
-let fightAnalyzed = false;
+let logObserverStarted = false;
+let armorAreaObserver = null;
 
 function analyzeDefenderArmor(retries) {
     const defenderPlayer = $(".player___vjxP2").has("#weapon_main.defender___l1ETt");
@@ -26,6 +27,7 @@ function analyzeDefenderArmor(retries) {
         setTimeout(() => analyzeDefenderArmor(retries - 1), 500);
         return;
     }
+    if (!areas.length) watchForDefenderArmorAreas(defenderPlayer);
 
     const seen = {};
     const pieces = [];
@@ -64,7 +66,8 @@ function analyzeDefenderArmor(retries) {
         pointerEvents: 'none',
     }).prependTo(playerWindow.css('position', 'relative'));
 
-    (pieces.length ? pieces : ['No armor']).forEach(name => $('<div>').text(name).appendTo($info));
+    $('<div id="action-log-info"></div>').appendTo($info);
+    (pieces.length ? pieces : ['No armor']).forEach(name => $('<div>').addClass('armor-info-row').text(name).appendTo($info));
 
     startLogObserver();
 
@@ -92,7 +95,9 @@ function parseLogEntry(li) {
     if (/leave|grenade|slowed|speed/.test(iconClass)) return null;
 
     if (iconClass.includes('attack-join')) {
-        const name = $li.find('span[class*="message"] a').first().text();
+        const msgText = $li.find('span[class*="message"]').text().trim();
+        const name = msgText.split(/\s+/)[0];
+        if (!name) return null;
         return { type: 'join', name };
     }
 
@@ -107,31 +112,58 @@ function parseLogEntry(li) {
     return { type: 'hit', side, damage, isCrit };
 }
 
+function watchForDefenderArmorAreas(defenderPlayer) {
+    if (armorAreaObserver) return;
+
+    const target = defenderPlayer.find(".playerWindow___sDs7q")[0] || defenderPlayer[0];
+    if (!target) return;
+
+    armorAreaObserver = new MutationObserver(function () {
+        if (!defenderPlayer.find("map area").length) return;
+        armorAreaObserver.disconnect();
+        armorAreaObserver = null;
+        analyzeDefenderArmor(0);
+    });
+    armorAreaObserver.observe(target, { childList: true, subtree: true });
+}
+
 function startLogObserver() {
+    if (logObserverStarted) return;
+    logObserverStarted = true;
+
+    function appendEntry($container, entry) {
+        let text, color;
+        if (entry.type === 'join') {
+            text = entry.name + ' joined';
+            color = '#ff4';
+        } else if (entry.type === 'miss') {
+            text = 'MISS';
+            color = '#4f4';
+        } else {
+            text = entry.isCrit ? entry.damage + ' CRI' : String(entry.damage);
+            color = entry.side === 'attacker' ? '#4f4' : '#f44';
+        }
+
+        $('<div>').text(text).css('color', color).appendTo($container);
+    }
+
+    function rebuildLogOverlay(logList) {
+        const $container = $('#action-log-info');
+        if (!$container.length) return;
+
+        $container.empty();
+        $(logList).children('li').each(function () {
+            const entry = parseLogEntry(this);
+            if (!entry) return;
+            appendEntry($container, entry);
+        });
+    }
+
     function attachTo(logList) {
+        rebuildLogOverlay(logList);
         new MutationObserver(function (mutations) {
             for (const mutation of mutations) {
-                for (const node of mutation.addedNodes) {
-                    if (node.nodeType !== 1) continue;
-                    const entry = parseLogEntry(node);
-                    if (!entry) continue;
-
-                    let text, color;
-                    if (entry.type === 'join') {
-                        text = entry.name + ' joined';
-                        color = '#ff4';
-                    } else if (entry.type === 'miss') {
-                        text = 'MISS';
-                        color = '#4f4';
-                    } else {
-                        // entry.type === 'hit'
-                        const dmg = entry.isCrit ? entry.damage + ' CRI' : String(entry.damage);
-                        if (entry.side === 'attacker') { text = dmg; color = '#4f4'; }
-                        else                           { text = dmg; color = '#f44'; }
-                    }
-
-                    $('<div>').text(text).css('color', color).prependTo('#armor-info');
-                }
+                if (mutation.type === 'childList') rebuildLogOverlay(logList);
             }
         }).observe(logList, { childList: true });
     }
@@ -144,6 +176,15 @@ function startLogObserver() {
         if (found) { waitObserver.disconnect(); attachTo(found); }
     });
     waitObserver.observe(document.body, { childList: true, subtree: true });
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        analyzeDefenderArmor,
+        parseLogEntry,
+        startLogObserver,
+        watchForDefenderArmorAreas,
+    };
 }
 
 function initLoadoutSwitcher() {
@@ -239,10 +280,6 @@ function fightKeypressHandler(event) {
         const $fightBtn = $("[class*='dialogButtons'] button.torn-btn");
         if ($fightBtn.is(':visible')) {
             $fightBtn.click();
-            if (!fightAnalyzed) {
-                fightAnalyzed = true;
-                analyzeDefenderArmor(5);
-            }
         }
     } else if (WEAPON_KEYS[key]) {
         clickIfVisible($(WEAPON_KEYS[key]));
@@ -267,7 +304,7 @@ function keypressHandler(event) {
     }
 }
 
-(function () {
+if (typeof window !== 'undefined' && typeof document !== 'undefined') (function () {
     'use strict';
 
     if (location.pathname.startsWith('/item.php')) {
@@ -279,18 +316,5 @@ function keypressHandler(event) {
 
     document.addEventListener('keypress', keypressHandler);
 
-    const observer = new MutationObserver(function (mutations) {
-        if (fightAnalyzed) return;
-        for (const mutation of mutations) {
-            if (
-                mutation.target.classList.contains('attackStarted___KxAo_') &&
-                mutation.target.classList.contains('weaponSlot___Wq6XA')
-            ) {
-                fightAnalyzed = true;
-                analyzeDefenderArmor(5);
-                break;
-            }
-        }
-    });
-    observer.observe(document.body, { attributes: true, attributeFilter: ['class'], subtree: true });
+    analyzeDefenderArmor(5);
 })();
