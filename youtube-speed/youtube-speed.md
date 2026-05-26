@@ -4,7 +4,7 @@ Tampermonkey userscript that adds keyboard shortcuts to control YouTube video pl
 
 ## Page scope
 
-Runs on: `https://www.youtube.com/*`
+Runs on: `https://www.youtube.com` and `https://www.youtube.com/*`
 
 ## Speed steps
 
@@ -24,6 +24,8 @@ Runs on: `https://www.youtube.com/*`
 - A fixed overlay div is injected into the top-right corner of the page showing the current speed (e.g. `Speed: 1.5x`).
 - On page load, reads the current `<video>` playbackRate and initializes `currentSpeedIndex` to match. If the current rate is not in the steps array, `indexOf` returns -1 and speed defaults to the first step on next keypress.
 - Speed changes apply to `document.getElementsByTagName("video")[0]` — only affects the first video element on the page.
+- The keydown listener runs in capture phase (`window.addEventListener(..., true)`) to intercept events before YouTube's own handlers. The `c` key additionally calls `preventDefault`, `stopPropagation`, and `stopImmediatePropagation` to suppress YouTube's default binding.
+- Listens to `yt-navigate-finish` to re-apply the current speed after YouTube's SPA navigation.
 
 ## Dependencies
 

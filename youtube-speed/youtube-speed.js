@@ -1,11 +1,12 @@
 // ==UserScript==
 // @name         YouTube Speed Adjuster
 // @namespace    http://tampermonkey.net/
-// @version      0.1.7
+// @version      0.2.0
 // @description  Adjust YouTube video speed with keyboard shortcuts (z to slow down, x to set speed to 1x, c to speed up) and display current speed rate
 // @author       Dolacone
 // @downloadURL  https://raw.githubusercontent.com/Dolacone/monkey/refs/heads/master/youtube-speed/youtube-speed.js
 // @updateURL    https://raw.githubusercontent.com/Dolacone/monkey/refs/heads/master/youtube-speed/youtube-speed.js
+// @match        https://www.youtube.com
 // @match        https://www.youtube.com/*
 // @grant        none
 // ==/UserScript==
@@ -75,20 +76,26 @@
     }
 
     // Event listener for keyboard shortcuts
-    document.addEventListener('keydown', function(event) {
+    window.addEventListener('keydown', function(event) {
         if (event.key === 'x') {
             resetSpeed(); // Reset speed to 1x
         } else if (event.key === 'z') {
             speedDown(); // Slow down
         } else if (event.key === 'c') {
+            event.preventDefault();
+            event.stopPropagation();
+            event.stopImmediatePropagation();
             speedUp(); // Speed up
         } else if (event.key === 'v') {
             setLastSpeed(); // Set speed to last available speed
         }
-    });
+    }, true);  // set capture phase to true to block youtube key listener
 
     // Initialize the speed on page load
     window.addEventListener('load', function() {
+        setSpeed(speeds[currentSpeedIndex]);
+    });
+    window.addEventListener('yt-navigate-finish', function() {
         setSpeed(speeds[currentSpeedIndex]);
     });
 })();
