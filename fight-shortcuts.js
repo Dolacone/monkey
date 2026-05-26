@@ -240,10 +240,6 @@ function fightKeypressHandler(event) {
         const $fightBtn = $("[class*='dialogButtons'] button.torn-btn");
         if ($fightBtn.is(':visible')) {
             $fightBtn.click();
-            if (!fightAnalyzed) {
-                fightAnalyzed = true;
-                analyzeDefenderArmor(5);
-            }
         }
     } else if (WEAPON_KEYS[key]) {
         clickIfVisible($(WEAPON_KEYS[key]));
