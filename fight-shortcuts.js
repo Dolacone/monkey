@@ -94,6 +94,7 @@ function parseLogEntry(li) {
     if (iconClass.includes('attack-join')) {
         const msgText = $li.find('span[class*="message"]').text().trim();
         const name = msgText.split(/\s+/)[0];
+        if (!name) return null;
         return { type: 'join', name };
     }
 
