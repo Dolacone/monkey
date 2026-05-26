@@ -5,8 +5,8 @@
 // @author       Dolacone
 // @match        https://www.torn.com/page.php?sid=attack&user2ID=*
 // @match        https://www.torn.com/item.php
-// @downloadURL  https://raw.githubusercontent.com/Dolacone/monkey/refs/heads/master/fight-shortcuts.js
-// @updateURL    https://raw.githubusercontent.com/Dolacone/monkey/refs/heads/master/fight-shortcuts.js
+// @downloadURL  https://raw.githubusercontent.com/Dolacone/monkey/refs/heads/master/fight-shortcuts/fight-shortcuts.js
+// @updateURL    https://raw.githubusercontent.com/Dolacone/monkey/refs/heads/master/fight-shortcuts/fight-shortcuts.js
 // @icon
 // @grant        none
 // ==/UserScript==

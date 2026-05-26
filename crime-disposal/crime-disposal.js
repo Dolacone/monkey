@@ -4,8 +4,8 @@
 // @description  Quick reference for disposal
 // @author       Dolacone
 // @match        https://www.torn.com/loader.php?sid=crimes*
-// @downloadURL  https://raw.githubusercontent.com/Dolacone/monkey/refs/heads/master/crime-disposal.js
-// @updateURL    https://raw.githubusercontent.com/Dolacone/monkey/refs/heads/master/crime-disposal.js
+// @downloadURL  https://raw.githubusercontent.com/Dolacone/monkey/refs/heads/master/crime-disposal/crime-disposal.js
+// @updateURL    https://raw.githubusercontent.com/Dolacone/monkey/refs/heads/master/crime-disposal/crime-disposal.js
 // @icon
 // @grant        none
 // ==/UserScript==
