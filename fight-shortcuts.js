@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Torn: Shortcuts
-// @version      1.3.1
+// @version      1.3.2
 // @description  Faster actions
 // @author       Dolacone
 // @match        https://www.torn.com/page.php?sid=attack&user2ID=*
@@ -92,7 +92,8 @@ function parseLogEntry(li) {
     if (/leave|grenade|slowed|speed/.test(iconClass)) return null;
 
     if (iconClass.includes('attack-join')) {
-        const name = $li.find('span[class*="message"] a').first().text();
+        const msgText = $li.find('span[class*="message"]').text().trim();
+        const name = msgText.split(/\s+/)[0];
         return { type: 'join', name };
     }
 
@@ -279,18 +280,6 @@ function keypressHandler(event) {
 
     document.addEventListener('keypress', keypressHandler);
 
-    const observer = new MutationObserver(function (mutations) {
-        if (fightAnalyzed) return;
-        for (const mutation of mutations) {
-            if (
-                mutation.target.classList.contains('attackStarted___KxAo_') &&
-                mutation.target.classList.contains('weaponSlot___Wq6XA')
-            ) {
-                fightAnalyzed = true;
-                analyzeDefenderArmor(5);
-                break;
-            }
-        }
-    });
-    observer.observe(document.body, { attributes: true, attributeFilter: ['class'], subtree: true });
+    fightAnalyzed = true;
+    analyzeDefenderArmor(5);
 })();
