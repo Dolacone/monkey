@@ -90,7 +90,13 @@ Key map (index 0–7 = loadout slots left to right):
 | 1 2 3 4 | slots 0–3 |
 | q w e r | slots 4–7 |
 
+Matching is case-sensitive on the raw `event.key` — `Shift+Q` sends `Q`, which is not in the key map and does nothing.
+
 Pressing a key clicks `button[aria-label="Equip loadout"]` on that slot. If the button is disabled (slot already active) or absent, the keypress is ignored. Handler is suppressed when focus is inside an input, textarea, select, or contenteditable element.
+
+Space cycles to the next loadout slot: finds the slot currently marked `current`, advances to `(currentIndex + 1) % slotCount`, and clicks its equip button. Wraps from the last slot back to slot 0. Does nothing if no slot is currently marked `current`, or if there are no slots.
+
+`z` clicks the Quick Items bar entry titled "Blood Bag : O+" (`[class*="_quick-item_"][title="Blood Bag : O+"]`), immediately consuming one — Torn does not show a confirmation dialog for this. Does nothing if that quick item is not present in the bar.
 
 ## Key selectors and stability notes
 
@@ -110,6 +116,7 @@ Game CSS class names use hashed suffixes (e.g. `list___Hip7j`, `player___vjxP2`)
 | `ul[class*="slots"]` | Loadout slots list (item.php) | Substring match, hash-tolerant |
 | `li[class*="slot___"]` | Individual loadout slot (item.php) | Substring match, hash-tolerant |
 | `button[aria-label="Equip loadout"]` | Equip button per slot (item.php) | aria-label is stable |
+| `[class*="_quick-item_"][title="Blood Bag : O+"]` | Quick Items bar entry for z shortcut (item.php) | Class hash may change; `title` attribute holds the exact item name and is more stable |
 
 If selectors break after a game update, capture a new DOM snapshot and compare against the above table.
 

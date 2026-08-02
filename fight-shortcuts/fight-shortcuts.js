@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Torn: Shortcuts
-// @version      1.3.5
+// @version      1.4.0
 // @description  Faster actions
 // @author       Dolacone
 // @match        https://www.torn.com/page.php?sid=attack&user2ID=*
@@ -189,6 +189,7 @@ if (typeof module !== 'undefined' && module.exports) {
 
 function initLoadoutSwitcher() {
     const LOADOUT_KEYS = { '1': 0, '2': 1, '3': 2, '4': 3, 'q': 4, 'w': 5, 'e': 6, 'r': 7 };
+    const QUICK_ITEM_SELECTOR = '[class*="_quick-item_"][title="Blood Bag : O+"]';
     let loadoutPresent = false;
     let savedBg = '';
     let loadoutKeyHandler = null;
@@ -227,19 +228,51 @@ function initLoadoutSwitcher() {
         slotObserver.observe(ul, { attributes: true, attributeFilter: ['class'], subtree: true });
     }
 
+    function getSlots() {
+        const root = document.querySelector('#loadoutsRoot');
+        return root ? root.querySelectorAll('li[class*="slot___"]') : [];
+    }
+
+    function clickEquipButton(slot) {
+        if (!slot) return false;
+        const btn = slot.querySelector('button[aria-label="Equip loadout"]');
+        if (!btn || btn.disabled) return false;
+        btn.click();
+        return true;
+    }
+
+    function cycleToNextSlot() {
+        const slots = getSlots();
+        if (!slots.length) return false;
+        const currentIdx = Array.prototype.findIndex.call(slots, function (li) {
+            return li.className.includes('current');
+        });
+        if (currentIdx === -1) return false;
+        return clickEquipButton(slots[(currentIdx + 1) % slots.length]);
+    }
+
+    function clickQuickItem() {
+        const item = document.querySelector(QUICK_ITEM_SELECTOR);
+        if (!item) return false;
+        item.click();
+        return true;
+    }
+
     function loadoutKeydown(event) {
         if (event.target.closest('input, textarea, select, [contenteditable]')) return;
+
+        if (event.key === ' ') {
+            if (cycleToNextSlot()) event.preventDefault();
+            return;
+        }
+        if (event.key === 'z') {
+            if (clickQuickItem()) event.preventDefault();
+            return;
+        }
+
         const idx = LOADOUT_KEYS[event.key];
         if (idx === undefined) return;
-        const root = document.querySelector('#loadoutsRoot');
-        if (!root) return;
-        const slots = root.querySelectorAll('li[class*="slot___"]');
-        const slot = slots[idx];
-        if (!slot) return;
-        const btn = slot.querySelector('button[aria-label="Equip loadout"]');
-        if (!btn || btn.disabled) return;
-        btn.click();
-        event.preventDefault();
+        if (clickEquipButton(getSlots()[idx])) event.preventDefault();
     }
 
     new MutationObserver(function () {
