@@ -1,10 +1,10 @@
 # fight-shortcuts.test.js
 
-Regression tests for `fight-shortcuts.js` using focused fake DOM objects for the fight overlay behavior.
+Regression tests for `fight-shortcuts.js`, using hand-rolled fake jQuery/DOM objects (`loadScriptWithArmorDom` / `loadScriptWithLogDom`) instead of a full DOM library.
 
-The tests document the intended behavior:
+## Coverage
 
-- Defender armor overlay must update when armor areas arrive after an initial `No armor` render.
-- Action log observer must attach once, even when started repeatedly.
-- Action log overlay order should match Torn's original action log order: latest event first.
-- Rebuilt action log lists should fully replace the overlay log section from current rows.
+- 護甲覆蓋層（REQ-002）：只測「區塊延遲出現後重新渲染」這個非同步分支，防止 watcher 掛好後不會重新渲染的迴歸。
+- 即時戰鬥日誌覆蓋層（REQ-003）：`parseLogEntry` 的各分支（miss / hit / crit / join / skip）、observer 只掛一次、批次重建覆蓋層都有覆蓋，防止解析規則或去重邏輯出現看起來合理但算錯的迴歸。
+- 裝備組切換器（REQ-004）：沒有自動化測試。`initLoadoutSwitcher()` 內的函式沒有匯出，且依賴即時 DOM／React 狀態（`current` class、按鈕 `disabled`）。改動後的手動驗證方式與原因記錄在 `DESIGN.md`。
+- 攻擊頁鍵盤快捷鍵（REQ-001）：沒有自動化測試，邏輯只是直接呼叫真實按鈕的 `click()`，只能手動驗證。
