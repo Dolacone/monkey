@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Torn: Shortcuts
-// @version      1.4.0
+// @version      1.5.0
 // @description  Faster actions
 // @author       Dolacone
 // @match        https://www.torn.com/page.php?sid=attack&user2ID=*
@@ -14,6 +14,7 @@
 
 let logObserverStarted = false;
 let armorAreaObserver = null;
+let continueButtonObserver = null;
 
 function analyzeDefenderArmor(retries) {
     const defenderPlayer = $(".player___vjxP2").has("#weapon_main.defender___l1ETt");
@@ -302,7 +303,32 @@ const WEAPON_KEYS = {
 };
 
 function clickIfVisible($el) {
-    if ($el.is(':visible')) $el.click();
+    if (!$el.is(':visible')) return false;
+    $el.click();
+    return true;
+}
+
+function findContinueButton() {
+    return $('[class*="dialogButtons"] button.torn-btn').filter(function () {
+        return $(this).text().trim().toUpperCase() === 'CONTINUE';
+    });
+}
+
+function watchForContinueAndClose() {
+    if (continueButtonObserver) return;
+
+    if (findContinueButton().length) {
+        window.close();
+        return;
+    }
+
+    continueButtonObserver = new MutationObserver(function () {
+        if (!findContinueButton().length) return;
+        continueButtonObserver.disconnect();
+        continueButtonObserver = null;
+        window.close();
+    });
+    continueButtonObserver.observe(document.body, { childList: true, subtree: true });
 }
 
 function fightKeypressHandler(event) {
@@ -317,11 +343,11 @@ function fightKeypressHandler(event) {
     } else if (WEAPON_KEYS[key]) {
         clickIfVisible($(WEAPON_KEYS[key]));
     } else if (lkey === 'q') {
-        clickIfVisible($("button.torn-btn:contains('leave')"));
+        if (clickIfVisible($("button.torn-btn:contains('leave')"))) watchForContinueAndClose();
     } else if (lkey === 'w') {
-        clickIfVisible($("button.torn-btn:contains('mug')"));
+        if (clickIfVisible($("button.torn-btn:contains('mug')"))) watchForContinueAndClose();
     } else if (lkey === 'e') {
-        clickIfVisible($("button.torn-btn:contains('hospitalize')"));
+        if (clickIfVisible($("button.torn-btn:contains('hospitalize')"))) watchForContinueAndClose();
     } else if (lkey === 'b') {
         const id = new URLSearchParams(window.location.search).get('user2ID');
         window.location.href = "/profiles.php?XID=" + id;

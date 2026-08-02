@@ -15,7 +15,7 @@ The IIFE entry point branches by page: item.php runs `initLoadoutSwitcher()` and
 
 ### 鍵盤快捷鍵（REQ-001）
 
-`keypressHandler` 註冊在 `document` 的 `keypress` 事件上，只在攻擊頁生效。
+`keypressHandler` 註冊在 `document` 的 `keypress` 事件上，只在攻擊頁生效。Q/W/E 成功點擊後由 `watchForContinueAndClose()` 掛一個 MutationObserver 在 `document.body`，等 CONTINUE 按鈕出現時關閉分頁；同一時間只會有一個這樣的 observer（`continueButtonObserver`）。
 
 ### 護甲覆蓋層（REQ-002）
 
@@ -48,6 +48,7 @@ Game CSS class names use hashed suffixes (e.g. `list___Hip7j`, `player___vjxP2`)
 | `li[class*="slot___"]` | Individual loadout slot (item.php) | Substring match, hash-tolerant |
 | `button[aria-label="Equip loadout"]` | Equip button per slot (item.php) | aria-label is stable |
 | `[class*="_quick-item_"][title="Blood Bag : O+"]` | Quick Items bar entry for z shortcut (item.php) | Class hash may change; `title` attribute holds the exact item name and is more stable |
+| `[class*="dialogButtons"] button.torn-btn` (text "CONTINUE") | Ack signal after leave/mug/hospitalize, closes the tab | Same wrapper selector already used by Space; hash may change, matched by text as well for specificity |
 
 If selectors break after a game update, capture a new DOM snapshot and compare against the above table.
 

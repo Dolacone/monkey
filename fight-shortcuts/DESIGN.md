@@ -1,5 +1,15 @@
 # DESIGN
 
+## 處置動作後自動關閉分頁（REQ-001）
+
+用「CONTINUE 按鈕出現」當作 Q/W/E 動作已被系統確認的訊號，而不是等固定時間或比對結果文字（例如「You mugged ... and stole $...」），因為結果文字包含玩家名稱與金額等變數，且措辭是 mug 專屬的，換成 leave/hospitalize 就不成立；CONTINUE 按鈕的 wrapper selector (`[class*="dialogButtons"] button.torn-btn`) 剛好也是 Space 鍵已經在用的同一個 selector，延續既有慣例。
+
+`window.close()` 能不能關掉「不是由 script 開啟」的分頁，原本是最大的可行性風險（Chrome 對這類分頁的關閉有限制）。在使用者自己手動開的攻擊分頁上實測過，`window.close()` 確實把分頁關掉了，這條路可行，不需要改 `@grant` 換 Tampermonkey 的其他 API。
+
+CONTINUE 按鈕的結構只在 mug 結果畫面上實際核對過（`div.dialog___ .green___` > `div.dialogButtons___` > `button.torn-btn` 文字為 CONTINUE）；leave 跟 hospitalize 是否走同一個 dialog 元件、按鈕文字是否也是 CONTINUE，目前是假設沒有實測，需要使用者自己在下一次 leave / hospitalize 的結果畫面上確認。
+
+沒有自動化測試：`fightKeypressHandler`、`watchForContinueAndClose`、`findContinueButton` 都直接操作真實按鈕與即時 DOM，跟其餘鍵盤快捷鍵一樣只能手動驗證。
+
 ## 裝備組切換器（REQ-004）
 
 Space 循環與 z 快捷道具的實作都放在 `initLoadoutSwitcher()` 內部，沒有匯出給測試檔案。這幾個 helper（`getSlots` / `clickEquipButton` / `cycleToNextSlot` / `clickQuickItem`）操作的是即時 DOM 與 React 內部狀態（`current` class、按鈕 `disabled`），不是純函式，跟既有的 loadout 鍵盤對應邏輯一樣沒有自動化測試，改成在真實頁面上手動驗證：
