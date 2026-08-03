@@ -23,11 +23,32 @@ Polls every 1000ms via `updateDivColors()`. For each row in `.pickpocketing-root
 ### After commit
 
 On button click:
+- Captures a snapshot of the target row (avatar id, name, body type, action type, remaining seconds) before any DOM changes
 - Removes `Q` keybinding
 - Resets page background to black
 - Restores the row's original color
 - Moves the button back to its original parent and hides it
-- Polls every 500ms until `[class*="outcomeWrapper"]` has content, then moves `[class*="outcomeReward"]` into the result banner area
+- Attaches a `MutationObserver` on `[class*="currentCrime"]` (10s safety timeout) that fires on DOM changes; each firing checks for `[class*="outcomeWrapper"]` content, and once found moves `[class*="outcomeReward"]` into the result banner area and parses the outcome status/reward
+- Appends a full log record (snapshot + status + reward + timestamp) to `localStorage`, unmerged, one entry per attempt
+
+### Attempt log
+
+Each pickpocket attempt (via click or `Q`) is recorded to `localStorage` under the key `pickpocketLog` as a JSON array. Each record:
+
+| Field | Example | Source |
+|-------|---------|--------|
+| `avatarId` | `"1164"` | Row `<img>` src (`/images/v2/crimes/faces/1164.webp`) |
+| `name` | `"Cyclist"` | `[class*="titleAndProps"] > div:first-child` |
+| `bodyType` | `"Average 5'0\" 162 lbs"` | `[class*="physicalProps"]` |
+| `actionType` | `"Walking"` | `[class*="activity"]` direct text node |
+| `remainingSeconds` | `"7s"` | `[class*="clock"]` |
+| `status` | `"SUCCESS"` | `[class*="outcomeReward"] [class*="title"]` |
+| `reward` | `1718` or `["Zip Wallet"]` or `["Zip Wallet", "Cell Phone"]` or `null` | `[class*="outcomeReward"] [class*="rewards"]` text parsed to a `Number` (`$` and `,` stripped) for money; an array of every `img[alt]` inside it for item rewards (can contain more than one item cell); `null` when there's no reward text (e.g. FAILURE) |
+| `timestamp` | ISO string | Recorded at outcome time |
+
+Records are never merged or deduplicated; every attempt adds a new entry. Reload does not clear `localStorage`, so history persists across page refreshes.
+
+An "Export Log" button is injected next to "Back to Hub", styled with a solid green background and white text (independent of light/dark theme, matching the row-highlight color) so it stays visible in both modes. Clicking it downloads the full `pickpocketLog` array as a `pickpocket-log-<timestamp>.json` file via the browser's download mechanism.
 
 ### Background color as status indicator
 
@@ -61,7 +82,12 @@ Toggling an item reloads the page to apply. If not running under Tampermonkey, a
 | `[class*="currentCrime"] [class*="bannerArea"]` | Result display area |
 | `[class*="outcomeWrapper"]` | Post-commit outcome container |
 | `[class*="outcomeReward"]` | Reward element to surface |
+| `[class*="outcomeReward"] [class*="title"]` | Outcome status text (e.g. SUCCESS/FAIL) |
+| `[class*="outcomeReward"] [class*="rewards"]` | Outcome reward text (money or item) |
 | `[class*="childrenWrapper"]` | Row label text (colored green when active) |
+| `[class*="physicalProps"]` | Row body type text |
+| `[class*="activity"]` | Row action type text + countdown |
+| `[class*="clock"]` | Row remaining seconds |
 
 All `[class*="..."]` selectors use substring matching to tolerate hashed class name changes.
 
