@@ -1,14 +1,18 @@
 # DESIGN
 
-## 幫派頁攻擊連結開新分頁（REQ-005）
+## 攻擊連結開新分頁（REQ-005）
 
-從舊的獨立草稿 `tmp.js` 合併進來，原本用 `GM_openInTab(url, { active: true, insert: true })`，這次維持同一個 API，沒有換成 `window.open()`。
+從舊的獨立草稿 `tmp.js` 合併進來，原本用 `GM_openInTab(url, { active: true, insert: true })`，維持同一個 API，沒有換成 `window.open()`。
 
 換成 `window.open()` 曾經考慮過，好處是不用額外申請 `@grant`，維持這個腳本一直以來 `@grant none` 的最小權限慣例。但 `window.open()` 能不能在真實使用者點擊觸發的事件裡開新分頁，取決於瀏覽器認不認這次呼叫是「使用者手勢」；直接呼叫（沒有手勢）已經證實會被擋（回傳 `null`），而透過瀏覽器自動化工具模擬的滑鼠點擊在這個環境裡完全沒有送達頁面的 `click` 事件，沒辦法藉此驗證「真人點擊」這條路徑安不安全。`GM_openInTab` 是 Tampermonkey 專門為了繞開這類限制設計的 API，`tmp.js` 原本就是用這個且應該實際用過，風險比賭 `window.open()` 低，所以改用 `@grant GM_openInTab`，捨棄最小權限慣例換取可靠性。
 
-攔截的判斷條件（`href` 前綴 `/page.php?sid=attack`）完全照抄 `tmp.js` 的邏輯，沒有拿真實的戰爭/敵對幫派頁面核對過 DOM——目前沒有進行中的戰爭，找不到真實範例。這是唯一還沒驗證的部分，等使用者下次在戰爭中看到這類連結時需要回頭確認一次。
+攔截的判斷條件（`href` 前綴 `/page.php?sid=attack`）已經在 `https://www.torn.com/profiles.php?XID=...` 的真實 Attack 按鈕上核對過，是真的 `<a>` 標籤，`getAttribute('href')` 原始值符合前綴。還沒拿真實的戰爭/敵對幫派頁面核對過，等使用者下次在戰爭中看到這類連結時可以再確認一次。
 
-沒有自動化測試：`initFactionAttackNewTab()` 直接操作 `document` 上的真實點擊事件與 `GM_openInTab`，跟其餘進出頁面的功能一樣只能手動驗證，而且這次連手動驗證都做不到（見上一段）。
+原本這個功能只在 `factions.php` 生效，`initFactionAttackNewTab()` 綁在該頁面的分支裡。這次放寬成整個 `https://www.torn.com/*` 都適用（因為真實的 Attack 按鈕其實散落在 `profiles.php` 等好幾種頁面，不只 `factions.php`），所以連 `@match` 也從三條具體路徑改成單一的 `https://www.torn.com/*`，函式改名成 `initAttackLinkNewTab()`，並移到 IIFE 最前面無條件呼叫，跟後面的 item.php／攻擊頁分支完全獨立，不共用任何狀態。
+
+放寬 `@match` 到整站的最大風險是：原本攻擊頁專屬的邏輯（`document.body` 背景變棕色、全域 `keypress` 監聽、`analyzeDefenderArmor`）如果繼續用同一個 else 分支接住「所有不是 item.php 的頁面」，就會在全站每個頁面上跑，包括在文字輸入框打字時被 `fightKeypressHandler` 的 B 鍵（無條件 `window.location.href` 導頁）攔截。已經改成明確判斷 `location.pathname` 是 `/page.php` 且 query string 的 `sid` 精確等於 `attack` 才會進入這段邏輯，跟原本 `@match` 限定單一頁面時的精確度一致（用 node 手動跑過 `sid=missions`、`sid=gym` 等鄰近案例確認不會誤判）。
+
+沒有自動化測試：`initAttackLinkNewTab()` 直接操作 `document` 上的真實點擊事件與 `GM_openInTab`，跟其餘進出頁面的功能一樣只能手動驗證，而且連手動驗證都還沒做完整（見上一段的戰爭頁面部分）。
 
 ## 處置動作後自動關閉分頁（REQ-001）
 

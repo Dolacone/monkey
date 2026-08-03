@@ -1,11 +1,9 @@
 // ==UserScript==
 // @name         Torn: Shortcuts
-// @version      1.6.0
+// @version      1.7.0
 // @description  Faster actions
 // @author       Dolacone
-// @match        https://www.torn.com/page.php?sid=attack&user2ID=*
-// @match        https://www.torn.com/item.php
-// @match        https://www.torn.com/factions.php*
+// @match        https://www.torn.com/*
 // @downloadURL  https://raw.githubusercontent.com/Dolacone/monkey/refs/heads/master/fight-shortcuts/fight-shortcuts.js
 // @updateURL    https://raw.githubusercontent.com/Dolacone/monkey/refs/heads/master/fight-shortcuts/fight-shortcuts.js
 // @icon
@@ -364,7 +362,7 @@ function keypressHandler(event) {
     }
 }
 
-function initFactionAttackNewTab() {
+function initAttackLinkNewTab() {
     document.addEventListener('click', function (event) {
         const link = event.target.closest('a');
         if (!link) return;
@@ -380,13 +378,16 @@ function initFactionAttackNewTab() {
 if (typeof window !== 'undefined' && typeof document !== 'undefined') (function () {
     'use strict';
 
+    initAttackLinkNewTab();
+
     if (location.pathname.startsWith('/item.php')) {
         initLoadoutSwitcher();
         return;
     }
 
-    if (location.pathname.startsWith('/factions.php')) {
-        initFactionAttackNewTab();
+    const isAttackPage = location.pathname.startsWith('/page.php')
+        && new URLSearchParams(location.search).get('sid') === 'attack';
+    if (!isAttackPage) {
         return;
     }
 
