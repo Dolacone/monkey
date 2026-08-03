@@ -1,12 +1,12 @@
 // ==UserScript==
-// @name         Torn: Shortcuts
+// @name         Torn: Fight Better
 // @version      1.7.0
 // @description  Faster actions
 // @author       Dolacone
 // @match        https://www.torn.com/*
 // @downloadURL  https://raw.githubusercontent.com/Dolacone/monkey/refs/heads/master/fight-shortcuts/fight-shortcuts.js
 // @updateURL    https://raw.githubusercontent.com/Dolacone/monkey/refs/heads/master/fight-shortcuts/fight-shortcuts.js
-// @icon
+// @icon         https://www.google.com/s2/favicons?sz=64&domain=torn.com
 // @grant        GM_openInTab
 // ==/UserScript==
 
