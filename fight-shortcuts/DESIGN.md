@@ -26,9 +26,18 @@ CONTINUE 按鈕的結構只在 mug 結果畫面上實際核對過（`div.dialog_
 
 ## 裝備組切換器（REQ-004）
 
-Space 循環與 z 快捷道具的實作都放在 `initLoadoutSwitcher()` 內部，沒有匯出給測試檔案。這幾個 helper（`getSlots` / `clickEquipButton` / `cycleToNextSlot` / `clickQuickItem`）操作的是即時 DOM 與 React 內部狀態（`current` class、按鈕 `disabled`），不是純函式，跟既有的 loadout 鍵盤對應邏輯一樣沒有自動化測試，改成在真實頁面上手動驗證：
+Space 循環與 z 快捷道具的實作都放在 `initLoadoutSwitcher()` 內部，沒有匯出給測試檔案。這幾個 helper（`getSlots` / `clickEquipButton` / `cycleToNextSlot`）操作的是即時 DOM 與 React 內部狀態（`current` class、按鈕 `disabled`），不是純函式，跟既有的 loadout 鍵盤對應邏輯一樣沒有自動化測試，改成在真實頁面上手動驗證：
 
 - 循環邏輯 (REQ-004 條件 11) 在 `https://www.torn.com/item.php` 展開的 loadout 面板上，用 4 個實際存在的槽位手動觸發 `cycleToNextSlot()`，確認 0→1→2→3→0 正確 wrap-around。React 更新 `current` class 是非同步的，同一個 tick 內連續呼叫會讀到舊的 class；真實使用情境下按鍵之間有人的反應時間，不受影響。
-- z 鍵目標選擇器 (REQ-004 條件 15) 用 `querySelector` 確認 `[class*="_quick-item_"][title="Blood Bag : O+"]` 能命中正確節點，但沒有實際點擊測試，因為會真的消耗一顆道具。改用 `title` 屬性而非巢狀的 `_name_` div 文字比對，因為 `title` 是完整項目名稱、屬性層級比文字節點更好比對。
 
 `LOADOUT_KEYS` 的按鍵比對是大小寫敏感的（直接比對 `event.key`，沒有 `.toLowerCase()`），這是既有程式碼的既定行為，不是這次改動引入的。之前 `requirements/REQ-004-loadout-switcher.md` 誤寫成「不分大小寫」，已一併修正。
+
+### z 鍵：改成直接使用物品清單裡的 Blood Bag: O+
+
+原本 z 鍵點的是 Quick Items 列裡的 Blood Bag 圖示。改掉的原因：那個圖示點下去在幫派軍械庫借用的道具上會失敗，而且原本選 target 用的是 Quick Items 列固定的單一圖示，沒辦法區分「自己的」跟「幫派借的」是不同的兩批庫存。
+
+新版改成直接操作物品清單裡的列，用 `findArmoryBloodBagRow()` 找出同時符合「名稱是 Blood Bag : O+」跟「有 Return to Faction 選項」的那一列——一開始考慮過用庫存數量最小的那一列當判斷依據，使用者糾正過這是錯的，正確判斷依據是有沒有「Return to Faction」這個選項（代表是幫派軍械庫借出的道具），已經拿真實頁面核對過兩列的差異：只有目標列有 `[data-action="return"]`。
+
+原本以為 Torn 的使用道具流程需要在網路層繞過 `confirm` 參數（照抄 torntools_extension 的 `item-no-confirm--inject.ts` 邏輯），實際攔截真實送出的 request body 後發現：這個動作是 `action=use`，不是 torntools 那份邏輯處理的 `action=equip`，而且第一次點擊完全沒有 `confirm` 參數、也沒有第二段帶 `confirm=1` 的請求。真正的確認流程是前端渲染出來的 `.use-act-wrap`（「Would you like to use the Blood Bag : O+? Your life total will be X/Y.」+ Okay/Cancel），只有在血量已經全滿時才會出現，跟 XHR body 完全無關。因此拿掉了整個 XHR patch 的想法，改成跟 REQ-001 的 `watchForContinueAndClose` 同一套模式：點 Use 之後先同步檢查一次 Okay 按鈕在不在，不在的話掛一個 MutationObserver 等它非同步出現再點，3 秒後自動 disconnect 避免長期掛著。這樣完全不需要動 `@grant`／`unsafeWindow`，風險比原計劃低很多。
+
+已經在真實帳號上端到端驗證成功：找到目標列 → 點 Use → 跳出確認提示 → observer 自動點 Okay → 道具被實際消耗，跳出「You rig up an intravenous drip and administer a blood transfusion...」的成功訊息。中途也遇到過「Medical tab is full」這個跟本次改動完全無關的伺服器端限制（醫療道具使用佇列滿了），純粹是帳號當時的狀態，不是程式邏輯的問題。

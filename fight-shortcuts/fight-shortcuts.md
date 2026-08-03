@@ -31,6 +31,8 @@ The IIFE entry point always calls `initAttackLinkNewTab()` first, then branches:
 
 `initLoadoutSwitcher()` 只在 item.php 執行。用一個掛在 `document.body` 的 MutationObserver（`childList`, `subtree`）偵測 `#loadoutsRoot ul[class*="slots"]` 的出現與消失：出現時掛上槽位觀察者 (`attachSlotObserver`，監聽 `ul[class*="slots"]` 的 `class` 屬性變化) 與按鍵處理 (`loadoutKeydown`，掛在 `document` 的 `keydown`)；消失時兩者都拆除。
 
+z 鍵由 `useArmoryBloodBag()` 處理：`findArmoryBloodBagRow()` 在物品清單找目標列，點擊該列的 Use 按鈕後，先同步檢查一次 `.use-act-wrap a.next-act`（Okay 按鈕）是否已經出現；沒有的話掛一個 3 秒後自動 disconnect 的 MutationObserver 在 `document.body`，等確認提示非同步渲染出來再點 Okay。
+
 ### 攻擊連結開新分頁（REQ-005）
 
 `initAttackLinkNewTab()` 不限頁面，無條件執行，掛一個 `click` 事件監聽在 `document`（捕獲階段），涵蓋整個頁面、包含日後動態渲染出來的連結。跟後面的頁面分支（item.php / 攻擊頁）互相獨立，不共用任何狀態。
@@ -53,7 +55,9 @@ Game CSS class names use hashed suffixes (e.g. `list___Hip7j`, `player___vjxP2`)
 | `ul[class*="slots"]` | Loadout slots list (item.php) | Substring match, hash-tolerant |
 | `li[class*="slot___"]` | Individual loadout slot (item.php) | Substring match, hash-tolerant |
 | `button[aria-label="Equip loadout"]` | Equip button per slot (item.php) | aria-label is stable |
-| `[class*="_quick-item_"][title="Blood Bag : O+"]` | Quick Items bar entry for z shortcut (item.php) | Class hash may change; `title` attribute holds the exact item name and is more stable |
+| `li[data-item]` containing `[aria-label="Blood Bag : O+"]` and `[data-action="return"]` | Item list row for z shortcut, must be the faction-armoury-loaned one (item.php) | `data-item`/`data-action`/`aria-label` are plain attributes, no hash; verified live |
+| `li[data-action="use"] button.option-use` | Use button inside the matched row (item.php) | Verified live |
+| `.use-act-wrap a.next-act` | "Okay" button on the "already at full health, use anyway?" confirm prompt (item.php) | Verified live, confirmed via a real successful use |
 | `[class*="dialogButtons"] button.torn-btn` (text "CONTINUE") | Ack signal after leave/mug/hospitalize, closes the tab | Same wrapper selector already used by Space; hash may change, matched by text as well for specificity |
 | `a[href^="/page.php?sid=attack"]` (checked via `closest('a')` + `getAttribute('href')`) | Any attack link site-wide, redirected into a new tab | Verified against the real Attack button on `profiles.php`; not verified against a live war/enemy faction page yet — see REQ-005 |
 

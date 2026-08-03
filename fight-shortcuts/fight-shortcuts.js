@@ -189,7 +189,6 @@ if (typeof module !== 'undefined' && module.exports) {
 
 function initLoadoutSwitcher() {
     const LOADOUT_KEYS = { '1': 0, '2': 1, '3': 2, '4': 3, 'q': 4, 'w': 5, 'e': 6, 'r': 7 };
-    const QUICK_ITEM_SELECTOR = '[class*="_quick-item_"][title="Blood Bag : O+"]';
     let loadoutPresent = false;
     let savedBg = '';
     let loadoutKeyHandler = null;
@@ -251,10 +250,36 @@ function initLoadoutSwitcher() {
         return clickEquipButton(slots[(currentIdx + 1) % slots.length]);
     }
 
-    function clickQuickItem() {
-        const item = document.querySelector(QUICK_ITEM_SELECTOR);
-        if (!item) return false;
-        item.click();
+    function findArmoryBloodBagRow() {
+        const rows = document.querySelectorAll('li[data-item]');
+        return Array.prototype.find.call(rows, function (row) {
+            return row.querySelector('[aria-label="Blood Bag : O+"]') && row.querySelector('[data-action="return"]');
+        });
+    }
+
+    function clickUseConfirmIfShown() {
+        const okBtn = document.querySelector('.use-act-wrap a.next-act');
+        if (!okBtn) return false;
+        okBtn.click();
+        return true;
+    }
+
+    function useArmoryBloodBag() {
+        const row = findArmoryBloodBagRow();
+        if (!row) return false;
+        const useBtn = row.querySelector('li[data-action="use"] button.option-use');
+        if (!useBtn) return false;
+
+        useBtn.click();
+        if (clickUseConfirmIfShown()) return true;
+
+        const observer = new MutationObserver(function () {
+            if (!clickUseConfirmIfShown()) return;
+            observer.disconnect();
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
+        setTimeout(function () { observer.disconnect(); }, 3000);
+
         return true;
     }
 
@@ -266,7 +291,7 @@ function initLoadoutSwitcher() {
             return;
         }
         if (event.key === 'z') {
-            if (clickQuickItem()) event.preventDefault();
+            if (useArmoryBloodBag()) event.preventDefault();
             return;
         }
 
