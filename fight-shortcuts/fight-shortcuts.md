@@ -1,15 +1,16 @@
 # fight-shortcuts.js
 
-Tampermonkey userscript for Torn. Adds keyboard shortcuts on the attack page (armor overlay, real-time combat log, weapon/action keys) and a keyboard-driven loadout switcher on item.php.
+Tampermonkey userscript for Torn. Adds keyboard shortcuts on the attack page (armor overlay, real-time combat log, weapon/action keys), a keyboard-driven loadout switcher on item.php, and an open-attack-links-in-new-tab behavior on factions.php.
 
-Behavior is defined in `requirements/REQ-001` through `REQ-004`. This file covers only how the script runs — page scope, entry points, DOM hooks, and selector stability.
+Behavior is defined in `requirements/REQ-001` through `REQ-005`. This file covers only how the script runs — page scope, entry points, DOM hooks, and selector stability.
 
 ## Page scope
 
 - Attack page: `https://www.torn.com/page.php?sid=attack&user2ID=*`
 - Item page: `https://www.torn.com/item.php`
+- Faction page: `https://www.torn.com/factions.php*`
 
-The IIFE entry point branches by page: item.php runs `initLoadoutSwitcher()` and returns; all other code runs only on the attack page.
+The IIFE entry point branches by page: item.php runs `initLoadoutSwitcher()` and returns; factions.php runs `initFactionAttackNewTab()` and returns; all other code runs only on the attack page.
 
 ## Entry points and DOM hooks
 
@@ -28,6 +29,10 @@ The IIFE entry point branches by page: item.php runs `initLoadoutSwitcher()` and
 ### 裝備組切換器（REQ-004）
 
 `initLoadoutSwitcher()` 只在 item.php 執行。用一個掛在 `document.body` 的 MutationObserver（`childList`, `subtree`）偵測 `#loadoutsRoot ul[class*="slots"]` 的出現與消失：出現時掛上槽位觀察者 (`attachSlotObserver`，監聽 `ul[class*="slots"]` 的 `class` 屬性變化) 與按鍵處理 (`loadoutKeydown`，掛在 `document` 的 `keydown`)；消失時兩者都拆除。
+
+### 幫派頁攻擊連結開新分頁（REQ-005）
+
+`initFactionAttackNewTab()` 只在 factions.php 執行，掛一個 `click` 事件監聽在 `document`（捕獲階段），涵蓋整個頁面、包含日後動態渲染出來的連結。
 
 ## Key selectors and stability notes
 
@@ -49,10 +54,11 @@ Game CSS class names use hashed suffixes (e.g. `list___Hip7j`, `player___vjxP2`)
 | `button[aria-label="Equip loadout"]` | Equip button per slot (item.php) | aria-label is stable |
 | `[class*="_quick-item_"][title="Blood Bag : O+"]` | Quick Items bar entry for z shortcut (item.php) | Class hash may change; `title` attribute holds the exact item name and is more stable |
 | `[class*="dialogButtons"] button.torn-btn` (text "CONTINUE") | Ack signal after leave/mug/hospitalize, closes the tab | Same wrapper selector already used by Space; hash may change, matched by text as well for specificity |
+| `a[href^="/page.php?sid=attack"]` (checked via `closest('a')` + `getAttribute('href')`) | Attack link on factions.php to redirect into a new tab | Not verified against a live war/enemy faction page yet — see REQ-005 |
 
 If selectors break after a game update, capture a new DOM snapshot and compare against the above table.
 
 ## Dependencies
 
-- jQuery — provided by the Torn game page, no import needed.
-- Tampermonkey (Chrome/Firefox extension).
+- jQuery — provided by the Torn game page, no import needed. Not used by `initFactionAttackNewTab()`, which is plain DOM.
+- Tampermonkey (Chrome/Firefox extension), with the `GM_openInTab` grant.

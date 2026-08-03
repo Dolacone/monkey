@@ -1,5 +1,15 @@
 # DESIGN
 
+## 幫派頁攻擊連結開新分頁（REQ-005）
+
+從舊的獨立草稿 `tmp.js` 合併進來，原本用 `GM_openInTab(url, { active: true, insert: true })`，這次維持同一個 API，沒有換成 `window.open()`。
+
+換成 `window.open()` 曾經考慮過，好處是不用額外申請 `@grant`，維持這個腳本一直以來 `@grant none` 的最小權限慣例。但 `window.open()` 能不能在真實使用者點擊觸發的事件裡開新分頁，取決於瀏覽器認不認這次呼叫是「使用者手勢」；直接呼叫（沒有手勢）已經證實會被擋（回傳 `null`），而透過瀏覽器自動化工具模擬的滑鼠點擊在這個環境裡完全沒有送達頁面的 `click` 事件，沒辦法藉此驗證「真人點擊」這條路徑安不安全。`GM_openInTab` 是 Tampermonkey 專門為了繞開這類限制設計的 API，`tmp.js` 原本就是用這個且應該實際用過，風險比賭 `window.open()` 低，所以改用 `@grant GM_openInTab`，捨棄最小權限慣例換取可靠性。
+
+攔截的判斷條件（`href` 前綴 `/page.php?sid=attack`）完全照抄 `tmp.js` 的邏輯，沒有拿真實的戰爭/敵對幫派頁面核對過 DOM——目前沒有進行中的戰爭，找不到真實範例。這是唯一還沒驗證的部分，等使用者下次在戰爭中看到這類連結時需要回頭確認一次。
+
+沒有自動化測試：`initFactionAttackNewTab()` 直接操作 `document` 上的真實點擊事件與 `GM_openInTab`，跟其餘進出頁面的功能一樣只能手動驗證，而且這次連手動驗證都做不到（見上一段）。
+
 ## 處置動作後自動關閉分頁（REQ-001）
 
 用「CONTINUE 按鈕出現」當作 Q/W/E 動作已被系統確認的訊號，而不是等固定時間或比對結果文字（例如「You mugged ... and stole $...」），因為結果文字包含玩家名稱與金額等變數，且措辭是 mug 專屬的，換成 leave/hospitalize 就不成立；CONTINUE 按鈕的 wrapper selector (`[class*="dialogButtons"] button.torn-btn`) 剛好也是 Space 鍵已經在用的同一個 selector，延續既有慣例。
