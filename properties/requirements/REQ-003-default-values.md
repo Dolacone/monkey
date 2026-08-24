@@ -2,12 +2,12 @@
 
 ## 情境
 
-> 使用者不想在頁面上手動輸入 API key。API key 要寫死在腳本的設定區(跟 sample.js 一樣)。已經在租約中的房產,續約時要直接沿用該租約現有的條件。
+> 使用者不想在頁面上手動輸入 API key。Torn PDA 使用 app 已設定的 API key,桌面 Tampermonkey 使用者自行替換腳本中的 placeholder。已經在租約中的房產,續約時要直接沿用該租約現有的條件。
 
 ## 設定區塊
 
 1. 頁面上不提供任何輸入欄位(不再有 API key 輸入框)。
-2. API key 寫在腳本檔案頂端的設定區(CONFIG SETTINGS),使用者要換 key 得直接編輯腳本。
+2. 腳本檔案頂端的設定區(CONFIG SETTINGS)使用 `###PDA-APIKEY###` placeholder。Torn PDA 執行腳本前將它替換為 app 已設定的 API key。桌面 Tampermonkey 不替換它,使用者自行改成實際 API key。
 
 ## 續約沿用既有條件
 

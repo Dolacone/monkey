@@ -5,6 +5,7 @@ const vm = require('node:vm');
 
 function loadScript() {
     let styles = '';
+    const source = fs.readFileSync('pi-property-manager.js', 'utf8');
     const context = {
         clearTimeout,
         console,
@@ -21,8 +22,8 @@ function loadScript() {
     };
     context.$.each = () => {};
     vm.createContext(context);
-    vm.runInContext(fs.readFileSync('pi-property-manager.js', 'utf8'), context);
-    return { context, styles };
+    vm.runInContext(source, context);
+    return { context, source, styles };
 }
 
 function profileLink(playerId) {
@@ -50,4 +51,9 @@ test('REQ-002 #7: unrelated profile links cannot become the logged-in identity',
 test('REQ-002 #7: narrow screens can reach columns that exceed the panel width', () => {
     const { styles } = loadScript();
     assert.match(styles, /#pi-manager[\s\S]*overflow-x:\s*auto/);
+});
+
+test('REQ-003 #2: Torn PDA can inject its configured API key', () => {
+    const { source } = loadScript();
+    assert.match(source, /const apikey = '###PDA-APIKEY###';/);
 });

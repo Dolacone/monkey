@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PI Property Manager
 // @namespace    pi.property.manager
-// @version      1.0.1
+// @version      1.1.0
 // @description  Overview table for your Private Island properties, with auto-filled extension terms
 // @author       Dola
 // @license      MIT
@@ -13,7 +13,7 @@
 // ==/UserScript==
 
 /******************** CONFIG SETTINGS ********************/
-const apikey = ''; // Full access API key required to read your property/rental data.
+const apikey = '###PDA-APIKEY###'; // Torn PDA replaces this; desktop users replace it manually.
 /****************** END CONFIG SETTINGS *******************/
 
 const PI_PROPERTY_TYPE = 13;
