@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PI Property Manager
 // @namespace    pi.property.manager
-// @version      1.1.1
+// @version      1.1.2
 // @description  Overview table for your Private Island properties, with auto-filled extension terms
 // @author       Dola
 // @license      MIT
@@ -66,7 +66,14 @@ function apiRequest(selections) {
     };
 
     if (typeof window.PDA_httpGet === 'function') {
-        return window.PDA_httpGet(url, {}).then(parseApiResponse).catch(rejectWithContext);
+        return window
+            .fetch(url)
+            .then(async (response) => {
+                if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                return { responseText: await response.text() };
+            })
+            .then(parseApiResponse)
+            .catch(rejectWithContext);
     }
 
     return new Promise((resolve, reject) => {

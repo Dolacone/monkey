@@ -58,10 +58,16 @@ test('REQ-003 #2: Torn PDA can inject its configured API key', () => {
     assert.match(source, /const apikey = '###PDA-APIKEY###';/);
 });
 
-test('REQ-002 #1: Torn PDA can load property data through its native HTTP bridge', async () => {
+test('REQ-002 #1: Torn PDA loads property data with the page fetch transport', async () => {
     const { context } = loadScript();
     context.GM_xmlhttpRequest = undefined;
-    context.window.PDA_httpGet = async () => ({ responseText: JSON.stringify({ properties: {} }) });
+    context.window.PDA_httpGet = async () => {
+        throw new Error('PDA_httpGet must not be called');
+    };
+    context.window.fetch = async () => ({
+        ok: true,
+        text: async () => JSON.stringify({ properties: {} }),
+    });
 
     const result = await context.apiRequest('profile,properties');
 
@@ -79,7 +85,8 @@ test('REQ-002 #1: desktop uses GM_xmlhttpRequest when the PDA bridge is absent',
 
 test('REQ-002 #1: transport errors retain the request name and message', async () => {
     const { context } = loadScript();
-    context.window.PDA_httpGet = async () => {
+    context.window.PDA_httpGet = () => {};
+    context.window.fetch = async () => {
         throw new Error('native bridge unavailable');
     };
 
@@ -88,11 +95,16 @@ test('REQ-002 #1: transport errors retain the request name and message', async (
     });
 });
 
-test('REQ-002 #1: an empty PDA bridge response reports a diagnostic error', async () => {
+test('REQ-002 #1: a failed PDA fetch reports the HTTP status', async () => {
     const { context } = loadScript();
-    context.window.PDA_httpGet = async () => undefined;
+    context.window.PDA_httpGet = () => {};
+    context.window.fetch = async () => ({
+        ok: false,
+        status: 503,
+        statusText: 'Service Unavailable',
+    });
 
     await assert.rejects(context.apiRequest('profile,properties'), {
-        message: 'profile,properties: Error: HTTP bridge returned an invalid response',
+        message: 'profile,properties: Error: HTTP 503: Service Unavailable',
     });
 });
