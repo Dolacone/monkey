@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PI Property Manager
 // @namespace    pi.property.manager
-// @version      1.1.0
+// @version      1.1.1
 // @description  Overview table for your Private Island properties, with auto-filled extension terms
 // @author       Dola
 // @license      MIT
@@ -41,22 +41,46 @@ function getPlayerId() {
     return null;
 }
 
+function formatError(error) {
+    if (error && typeof error === 'object') {
+        if (error.message) return `${error.name || 'Error'}: ${error.message}`;
+        const serialized = JSON.stringify(error);
+        if (serialized && serialized !== '{}') return serialized;
+    }
+    return String(error || 'Unknown error');
+}
+
+function parseApiResponse(response) {
+    if (!response || typeof response.responseText !== 'string') {
+        throw new Error('HTTP bridge returned an invalid response');
+    }
+    const data = JSON.parse(response.responseText);
+    if (data.error) throw data.error;
+    return data;
+}
+
 function apiRequest(selections) {
+    const url = `https://api.torn.com/user/?selections=${selections}&key=${apikey}&comment=PIPropertyManager`;
+    const rejectWithContext = (error) => {
+        throw new Error(`${selections}: ${formatError(error)}`);
+    };
+
+    if (typeof window.PDA_httpGet === 'function') {
+        return window.PDA_httpGet(url, {}).then(parseApiResponse).catch(rejectWithContext);
+    }
+
     return new Promise((resolve, reject) => {
-        const url = `https://api.torn.com/user/?selections=${selections}&key=${apikey}&comment=PIPropertyManager`;
         GM_xmlhttpRequest({
             method: 'GET',
             url,
             onload: (response) => {
                 try {
-                    const data = JSON.parse(response.responseText);
-                    if (data.error) return reject(data.error);
-                    resolve(data);
+                    resolve(parseApiResponse(response));
                 } catch (e) {
-                    reject(e);
+                    reject(new Error(`${selections}: ${formatError(e)}`));
                 }
             },
-            onerror: reject,
+            onerror: (error) => reject(new Error(`${selections}: ${formatError(error)}`)),
         });
     });
 }
@@ -168,7 +192,7 @@ async function drawListPage(playerId) {
         $('#pi-manager').replaceWith(buildManagerHtml(properties, logData));
     } catch (e) {
         log('Failed to load property data', e);
-        $('#pi-manager').replaceWith(buildManagerHtml([], {}, 'Failed to load property data: ' + JSON.stringify(e)));
+        $('#pi-manager').replaceWith(buildManagerHtml([], {}, 'Failed to load property data: ' + formatError(e)));
     }
 }
 

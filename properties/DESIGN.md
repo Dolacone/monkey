@@ -4,6 +4,8 @@
 
 REQ-003 條件 2 使用 Torn PDA 的 `###PDA-APIKEY###` placeholder。Torn PDA 注入 app 已設定的 key,桌面 Tampermonkey 使用者直接替換 placeholder。Node 測試固定 placeholder,避免更新時改回空字串或寫入實際 key。
 
+REQ-002 條件 1 依執行環境選擇 HTTP transport。Torn PDA 的 `window.PDA_httpGet` 存在時直接呼叫 app bridge,否則使用 Tampermonkey 的 `GM_xmlhttpRequest`。兩條路徑共用回應解析與錯誤格式,避免 JavaScript `Error` 經 `JSON.stringify` 後只顯示 `{}`。Node 測試分別覆蓋兩條 transport 與錯誤內容。
+
 ## REQ-003:上架頁籤(lease)的自動學習預設值 — 已放棄
 
 原本設計(2026-08-24 曾實作):使用者在上架頁籤按下 NEXT 送出後,腳本記錄當次天數/租金,依房產市值(`marketprice`)存成「已學習紀錄」,之後市值相近的房產開放上架時自動帶入。

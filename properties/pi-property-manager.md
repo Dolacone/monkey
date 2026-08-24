@@ -28,6 +28,7 @@ Torn 的金額輸入框(`input-money`)是「顯示用文字框 + 隱藏送出用
 - 房產清單:Torn API `user?selections=properties`。
 - 續約金額/天數的歷史紀錄:Torn API `user?selections=log&log=5943,5937`,比對 `data.property_id` 與 `data.renter`。
 - API key 位於腳本頂端的 CONFIG SETTINGS 區塊(`const apikey`)。預設值是 `###PDA-APIKEY###`,Torn PDA 在執行前替換成 app 已設定的 API key。桌面 Tampermonkey 使用者自行把 placeholder 改成實際 API key。API key 不存在 localStorage,頁面也不提供輸入欄位。
+- Torn PDA 直接使用 app 提供的 `PDA_httpGet`。桌面 Tampermonkey 使用 `GM_xmlhttpRequest`。請求失敗時顯示 selection、錯誤型別與訊息。
 
 ## 已知限制
 

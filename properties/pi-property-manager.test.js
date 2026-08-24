@@ -57,3 +57,42 @@ test('REQ-003 #2: Torn PDA can inject its configured API key', () => {
     const { source } = loadScript();
     assert.match(source, /const apikey = '###PDA-APIKEY###';/);
 });
+
+test('REQ-002 #1: Torn PDA can load property data through its native HTTP bridge', async () => {
+    const { context } = loadScript();
+    context.GM_xmlhttpRequest = undefined;
+    context.window.PDA_httpGet = async () => ({ responseText: JSON.stringify({ properties: {} }) });
+
+    const result = await context.apiRequest('profile,properties');
+
+    assert.equal(typeof result.properties, 'object');
+});
+
+test('REQ-002 #1: desktop uses GM_xmlhttpRequest when the PDA bridge is absent', async () => {
+    const { context } = loadScript();
+    context.GM_xmlhttpRequest = ({ onload }) => onload({ responseText: JSON.stringify({ properties: {} }) });
+
+    const result = await context.apiRequest('profile,properties');
+
+    assert.equal(typeof result.properties, 'object');
+});
+
+test('REQ-002 #1: transport errors retain the request name and message', async () => {
+    const { context } = loadScript();
+    context.window.PDA_httpGet = async () => {
+        throw new Error('native bridge unavailable');
+    };
+
+    await assert.rejects(context.apiRequest('profile,properties'), {
+        message: 'profile,properties: Error: native bridge unavailable',
+    });
+});
+
+test('REQ-002 #1: an empty PDA bridge response reports a diagnostic error', async () => {
+    const { context } = loadScript();
+    context.window.PDA_httpGet = async () => undefined;
+
+    await assert.rejects(context.apiRequest('profile,properties'), {
+        message: 'profile,properties: Error: HTTP bridge returned an invalid response',
+    });
+});
