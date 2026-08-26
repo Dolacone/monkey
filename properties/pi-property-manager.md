@@ -18,6 +18,7 @@
 - 續約表單輸入框:`input.offerExtension.input-money[data-name="offercost"]`(租金)、`input.offerExtension.input-money[data-name="days"]`(天數)。同一個 `data-name` 底下同時有 `type="text"`(顯示用)與 `type="hidden"`(送出用)兩個 input,只能寫 `type="text"` 那個。
 - 送出按鈕:續約表單為 `.offerExtension-form input[type="submit"]`,預設是 `disabled`,填完值後需手動移除。
 - 總覽表格是純自製的 `<table>`,搭配 `GM_addStyle` 寫死的深色主題 CSS,不依賴 Torn 任何頁面專屬 class。表格容器在窄螢幕允許水平捲動,避免欄位或操作連結被裁切。
+- `sortProperties` 依序比較 staff-free happy、Open 狀態、剩餘天數與總租期。所有數值由小到大排序。
 
 ## 寫入 input-money 元件的方式
 

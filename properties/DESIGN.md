@@ -10,6 +10,8 @@ REQ-002 條件 1 至 3 使用 Torn API v2 `/user/properties`。v2 的 `rental_pe
 
 REQ-002 條件 3 將 API 的 `staff.amount` 解讀為該 staff 類型的加成等級。Maid 各級加成為 50、75、85、100。Butler 為 75、100、125。Guard 為 100、150、200、300、500。Doctor 為 25。Pilot 為 50。腳本從 API `happy` 扣除各 staff 加成。Node 測試使用 `tmp` 內的完整 staff、部分 staff 與無 staff 組合,固定 3725 與 4225 兩種結果。
 
+REQ-002 條件 6 使用單一 comparator 依序比較 staff-free happy、是否為 Open、`rental_period_remaining` 與 `rental_period`。Node 測試以交錯資料固定四個排序鍵的優先級。
+
 REQ-003 條件 3 至 6 不再查詢活動紀錄。續約表單固定填入 15 天,再依 staff-free happy 查詢 CONFIG SETTINGS 的租金。Node 測試覆蓋 3725、4225 與未知 happy。
 
 ## REQ-003:上架頁籤(lease)的自動學習預設值 — 已放棄

@@ -209,17 +209,20 @@ test('REQ-002 #3: the table renders staff-free happy', () => {
     assert.doesNotMatch(html, /<td>4275<\/td>/);
 });
 
-test('REQ-002 #6: rented properties use v2 remaining days for urgency order', () => {
+test('REQ-002 #6: happy outranks status, remaining days, and total period', () => {
     const { context } = loadScript();
     const properties = [
-        { id: 1, status: 'rented', rental_period_remaining: 28 },
-        { id: 2, status: 'none', happy: 5000 },
-        { id: 3, status: 'rented', rental_period_remaining: 2 },
+        { id: 1, status: 'rented', happy: 4225, staff: [], rental_period_remaining: 28, rental_period: 30 },
+        { id: 2, status: 'none', happy: 3725, staff: [] },
+        { id: 3, status: 'rented', happy: 3725, staff: [], rental_period_remaining: 10, rental_period: 30 },
+        { id: 4, status: 'none', happy: 4225, staff: [] },
+        { id: 5, status: 'rented', happy: 4225, staff: [], rental_period_remaining: 2, rental_period: 30 },
+        { id: 6, status: 'rented', happy: 4225, staff: [], rental_period_remaining: 2, rental_period: 15 },
     ];
 
     assert.deepEqual(
         Array.from(context.sortProperties(properties), (property) => property.id),
-        [2, 3, 1],
+        [2, 3, 4, 6, 5, 1],
     );
 });
 

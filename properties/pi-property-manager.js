@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PI Property Manager
 // @namespace    pi.property.manager
-// @version      1.2.0
+// @version      1.2.1
 // @description  Overview table for your Private Island properties, with auto-filled extension terms
 // @author       Dola
 // @license      MIT
@@ -138,16 +138,20 @@ function getPropertyHappy(property) {
     return property.happy - getStaffHappyBonus(property.staff);
 }
 
-// REQ-002 #6: open properties first (sorted by happy ascending), then rented ones
-// ordered by soonest-expiring first (rental_period_remaining ascending).
+// REQ-002 #6: staff-free happy, open status, remaining days, then total rental period.
 function sortProperties(properties) {
     return properties.slice().sort((a, b) => {
+        const happyDifference = getPropertyHappy(a) - getPropertyHappy(b);
+        if (happyDifference !== 0) return happyDifference;
+
         const aRented = a.status === 'rented';
         const bRented = b.status === 'rented';
-        if (!aRented && !bRented) return getPropertyHappy(a) - getPropertyHappy(b);
-        if (!aRented) return -1;
-        if (!bRented) return 1;
-        return a.rental_period_remaining - b.rental_period_remaining;
+        if (aRented !== bRented) return aRented ? 1 : -1;
+        if (!aRented) return 0;
+
+        const remainingDifference = a.rental_period_remaining - b.rental_period_remaining;
+        if (remainingDifference !== 0) return remainingDifference;
+        return a.rental_period - b.rental_period;
     });
 }
 
