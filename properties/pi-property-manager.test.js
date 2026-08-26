@@ -18,12 +18,7 @@ function loadScript() {
         MutationObserver: function MutationObserver() {},
         setTimeout,
         window: {},
-        $: () => ({ length: 0, ready: () => {} }),
-    };
-    context.$.each = (collection, iteratee) => {
-        for (const [key, value] of Object.entries(collection)) {
-            if (iteratee(key, value) === false) break;
-        }
+        $: () => ({ length: 0, prop: () => {}, ready: () => {} }),
     };
     vm.createContext(context);
     vm.runInContext(source, context);
@@ -60,6 +55,14 @@ test('REQ-002 #7: narrow screens can reach columns that exceed the panel width',
 test('REQ-003 #2: Torn PDA can inject its configured API key', () => {
     const { source } = loadScript();
     assert.match(source, /const apikey = '###PDA-APIKEY###';/);
+});
+
+test('REQ-003 #3: extension rents remain editable in CONFIG SETTINGS', () => {
+    const { source } = loadScript();
+    const config = source.match(/CONFIG SETTINGS \*+\/(.*?)\/\*+ END CONFIG SETTINGS/s)?.[1];
+
+    assert.match(config, /3725:\s*9000000/);
+    assert.match(config, /4225:\s*13000000/);
 });
 
 test('REQ-002 #1: Torn PDA loads v2 property data with the page fetch transport', async () => {
@@ -162,6 +165,50 @@ test('REQ-002 #3: only a rented property opens the extension tab', () => {
     assert.match(context.buildLinkCell({ id: 102, status: 'for_rent' }), /tab=lease$/);
 });
 
+test('REQ-002 #3: full staff is excluded from a 4225-happy Private Island', () => {
+    const { context } = loadScript();
+    const property = {
+        happy: 5025,
+        staff: [
+            { type: 'Maid', amount: 4 },
+            { type: 'Guard', amount: 5 },
+            { type: 'Butler', amount: 3 },
+            { type: 'Doctor', amount: 1 },
+            { type: 'Pilot', amount: 1 },
+        ],
+    };
+
+    assert.equal(context.getStaffHappyBonus(property.staff), 800);
+    assert.equal(context.getPropertyHappy(property), 4225);
+});
+
+test('REQ-002 #3: partial staff and no staff retain the property-only happy', () => {
+    const { context } = loadScript();
+    const partialStaff = {
+        happy: 4675,
+        staff: [
+            { type: 'Maid', amount: 4 },
+            { type: 'Guard', amount: 2 },
+            { type: 'Butler', amount: 3 },
+            { type: 'Doctor', amount: 1 },
+            { type: 'Pilot', amount: 1 },
+        ],
+    };
+
+    assert.equal(context.getPropertyHappy(partialStaff), 4225);
+    assert.equal(context.getPropertyHappy({ happy: 3725, staff: [] }), 3725);
+});
+
+test('REQ-002 #3: the table renders staff-free happy', () => {
+    const { context } = loadScript();
+    const html = context.buildManagerHtml([
+        { id: 101, status: 'none', happy: 4275, staff: [{ type: 'Pilot', amount: 1 }] },
+    ]);
+
+    assert.match(html, /<td>4225<\/td>/);
+    assert.doesNotMatch(html, /<td>4275<\/td>/);
+});
+
 test('REQ-002 #6: rented properties use v2 remaining days for urgency order', () => {
     const { context } = loadScript();
     const properties = [
@@ -176,19 +223,80 @@ test('REQ-002 #6: rented properties use v2 remaining days for urgency order', ()
     );
 });
 
-test('REQ-003 #3: v2 renter identity selects the matching historical terms', async () => {
+test('REQ-002 #6: open properties sort by staff-free happy', () => {
     const { context } = loadScript();
-    let renterId;
+    const properties = [
+        { id: 1, status: 'none', happy: 4275, staff: [{ type: 'Pilot', amount: 1 }] },
+        {
+            id: 2,
+            status: 'none',
+            happy: 4525,
+            staff: [
+                { type: 'Maid', amount: 4 },
+                { type: 'Guard', amount: 5 },
+                { type: 'Butler', amount: 3 },
+                { type: 'Doctor', amount: 1 },
+                { type: 'Pilot', amount: 1 },
+            ],
+        },
+    ];
+
+    assert.deepEqual(
+        Array.from(context.sortProperties(properties), (property) => property.id),
+        [2, 1],
+    );
+});
+
+async function extensionWritesFor(context, property) {
+    const writes = [];
+    let disabled;
+    const costInput = { name: 'cost' };
+    const daysInput = { name: 'days' };
     context.getProperties = async () => ({
-        properties: [{ id: 101, status: 'rented', rented_by: { id: 777 } }],
+        properties: [{ id: 101, status: 'rented', ...property }],
     });
-    context.apiRequest = async () => ({ log: {} });
-    context.findLastRentalTerms = (logData, propertyId, currentRenterId) => {
-        renterId = currentRenterId;
+    context.document.querySelector = (selector) => {
+        if (selector.includes('offercost')) return costInput;
+        if (selector.includes('days')) return daysInput;
         return null;
     };
+    context.setMoneyInputValue = (input, value) => writes.push([input.name, value]);
+    context.$ = () => ({ prop: (name, value) => { disabled = value; } });
 
     await context.fillOfferExtensionForm('101');
 
-    assert.equal(renterId, 777);
+    return { disabled, writes };
+}
+
+test('REQ-003 #3-#5: 3725 happy uses fixed days and its configured rent', async () => {
+    const { context } = loadScript();
+    const result = await extensionWritesFor(context, {
+        happy: 4525,
+        staff: [
+            { type: 'Maid', amount: 4 },
+            { type: 'Guard', amount: 5 },
+            { type: 'Butler', amount: 3 },
+            { type: 'Doctor', amount: 1 },
+            { type: 'Pilot', amount: 1 },
+        ],
+    });
+
+    assert.deepEqual(result.writes, [['days', 15], ['cost', 9000000]]);
+    assert.equal(result.disabled, false);
+});
+
+test('REQ-003 #3-#5: 4225 happy uses fixed days and its configured rent', async () => {
+    const { context } = loadScript();
+    const result = await extensionWritesFor(context, { happy: 4275, staff: [{ type: 'Pilot', amount: 1 }] });
+
+    assert.deepEqual(result.writes, [['days', 15], ['cost', 13000000]]);
+    assert.equal(result.disabled, false);
+});
+
+test('REQ-003 #6: unknown happy fills days but leaves rent empty', async () => {
+    const { context } = loadScript();
+    const result = await extensionWritesFor(context, { happy: 4000, staff: [] });
+
+    assert.deepEqual(result.writes, [['days', 15], ['cost', '']]);
+    assert.equal(result.disabled, true);
 });

@@ -6,7 +6,11 @@ REQ-003 條件 2 使用 Torn PDA 的 `###PDA-APIKEY###` placeholder。Torn PDA �
 
 REQ-002 條件 1 依執行環境選擇 HTTP transport。Torn PDA 的 `window.PDA_httpGet` 存在時,對 `api.torn.com` 使用標準 `fetch`;否則使用 Tampermonkey 的 `GM_xmlhttpRequest`。Torn PDA 3.15.0 的 `PDA_httpGet` 在 iOS 實測回傳 `undefined`,而 Torn PDA 官方 userscript 對相同 API 網域使用 `fetch`。兩條路徑共用回應解析與錯誤格式,避免 JavaScript `Error` 經 `JSON.stringify` 後只顯示 `{}`。Node 測試分別覆蓋兩條 transport、HTTP 狀態與錯誤內容。
 
-REQ-002 條件 1 至 3 使用 Torn API v2 `/user/properties`。v2 的 `rental_period` 與 `rental_period_remaining` 直接對應總租期與剩餘天數。總覽頁不再從活動紀錄取得租期,也不再用租金反推天數。REQ-003 仍讀 v1 活動紀錄,因為續約表單需要上次議定的租金與天數。Node 測試覆蓋 v2 巢狀擁有者欄位、出租狀態、排序與 `rented_by.id`。
+REQ-002 條件 1 至 3 使用 Torn API v2 `/user/properties`。v2 的 `rental_period` 與 `rental_period_remaining` 直接對應總租期與剩餘天數。總覽頁不從活動紀錄取得租期,也不以租金反推天數。Node 測試覆蓋 v2 巢狀擁有者欄位、出租狀態與排序。
+
+REQ-002 條件 3 將 API 的 `staff.amount` 解讀為該 staff 類型的加成等級。Maid 各級加成為 50、75、85、100。Butler 為 75、100、125。Guard 為 100、150、200、300、500。Doctor 為 25。Pilot 為 50。腳本從 API `happy` 扣除各 staff 加成。Node 測試使用 `tmp` 內的完整 staff、部分 staff 與無 staff 組合,固定 3725 與 4225 兩種結果。
+
+REQ-003 條件 3 至 6 不再查詢活動紀錄。續約表單固定填入 15 天,再依 staff-free happy 查詢 CONFIG SETTINGS 的租金。Node 測試覆蓋 3725、4225 與未知 happy。
 
 ## REQ-003:上架頁籤(lease)的自動學習預設值 — 已放棄
 
@@ -22,4 +26,4 @@ REQ-002 條件 1 至 3 使用 Torn API v2 `/user/properties`。v2 的 `rental_pe
 
 如果之後要重新嘗試這個功能,建議路線:先用合成(非使用者觸發)的 `dispatchEvent` 觸發按鈕點擊做隔離測試 — 瀏覽器不會對非信任事件執行 `<input type="submit">` 的預設動作(不會真的送出表單),但仍會呼叫透過 `addEventListener` 掛的監聽器,可以在不影響真實遊戲狀態的前提下確認監聽器本身有沒有被觸發,再決定要往「監聽沒掛上」或「掛上了但邏輯錯」哪個方向繼續查。這一步在放棄前一直沒有實際執行過。
 
-保留的部分:REQ-003 續約頁籤(offerExtension)的自動填值(讀 activity log)已驗證正常運作,不受這次撤掉的影響。
+目前行為:上架頁籤仍不自動填值。續約頁籤改用固定天數與設定租金,不讀活動紀錄。

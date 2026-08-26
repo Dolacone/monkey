@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PI Property Manager
 // @namespace    pi.property.manager
-// @version      1.1.3
+// @version      1.2.0
 // @description  Overview table for your Private Island properties, with auto-filled extension terms
 // @author       Dola
 // @license      MIT
@@ -14,10 +14,21 @@
 
 /******************** CONFIG SETTINGS ********************/
 const apikey = '###PDA-APIKEY###'; // Torn PDA replaces this; desktop users replace it manually.
+const extensionRentByHappy = {
+    3725: 9000000,
+    4225: 13000000,
+};
 /****************** END CONFIG SETTINGS *******************/
 
 const PI_PROPERTY_TYPE = 13;
-const RENT_LOG_IDS = '5943,5937';
+const EXTENSION_DAYS = 15;
+const STAFF_HAPPY_BY_LEVEL = {
+    Maid: [0, 50, 75, 85, 100],
+    Butler: [0, 75, 100, 125],
+    Guard: [0, 100, 150, 200, 300, 500],
+    Doctor: [0, 25],
+    Pilot: [0, 50],
+};
 const DEBUG = 0;
 
 function log(...args) {
@@ -91,11 +102,6 @@ function requestUrl(url, requestName) {
     });
 }
 
-function apiRequest(selections) {
-    const url = `https://api.torn.com/user/?selections=${selections}&key=${apikey}&comment=PIPropertyManager`;
-    return requestUrl(url, selections);
-}
-
 function apiV2Request(path, query) {
     const suffix = query ? `&${query}` : '';
     const url = `https://api.torn.com/v2/${path}?key=${apikey}&comment=PIPropertyManager${suffix}`;
@@ -104,18 +110,6 @@ function apiV2Request(path, query) {
 
 function getProperties() {
     return apiV2Request('user/properties', 'filters=ownedByUser&limit=100');
-}
-
-// REQ-003 #3: find this renter's last agreed days/rent for this property from the activity log.
-function findLastRentalTerms(logData, propertyId, renterId) {
-    let match = null;
-    $.each(logData.log || {}, function (key, entry) {
-        if (entry.data && String(entry.data.property_id) === String(propertyId) && String(entry.data.renter) === String(renterId)) {
-            match = { days: entry.data.days, rent: entry.data.rent };
-            return false;
-        }
-    });
-    return match;
 }
 
 // Sets a Torn "input-money" widget's value: the visible text input must be updated through
@@ -133,13 +127,24 @@ function ownedPiProperties(properties, playerId) {
     );
 }
 
+function getStaffHappyBonus(staff) {
+    return (staff || []).reduce((total, entry) => {
+        const levels = STAFF_HAPPY_BY_LEVEL[entry.type];
+        return total + (levels?.[entry.amount] || 0);
+    }, 0);
+}
+
+function getPropertyHappy(property) {
+    return property.happy - getStaffHappyBonus(property.staff);
+}
+
 // REQ-002 #6: open properties first (sorted by happy ascending), then rented ones
 // ordered by soonest-expiring first (rental_period_remaining ascending).
 function sortProperties(properties) {
     return properties.slice().sort((a, b) => {
         const aRented = a.status === 'rented';
         const bRented = b.status === 'rented';
-        if (!aRented && !bRented) return a.happy - b.happy;
+        if (!aRented && !bRented) return getPropertyHappy(a) - getPropertyHappy(b);
         if (!aRented) return -1;
         if (!bRented) return 1;
         return a.rental_period_remaining - b.rental_period_remaining;
@@ -174,7 +179,7 @@ function buildManagerHtml(properties, statusMessage) {
         .map((p) => {
             const status = buildStatusCell(p);
             const href = buildLinkCell(p);
-            return `<tr><td>${p.happy}</td><td>${status}</td><td><a href="${href}" class="pi-manage-link">Manage</a></td></tr>`;
+            return `<tr><td>${getPropertyHappy(p)}</td><td>${status}</td><td><a href="${href}" class="pi-manage-link">Manage</a></td></tr>`;
         })
         .join('');
 
@@ -213,8 +218,7 @@ async function drawListPage(playerId) {
     }
 }
 
-// REQ-003 #3/#4: prefill only when this renter's last agreed terms are found in the
-// activity log. Lease (open properties) is not auto-filled at all - see DESIGN.md.
+// REQ-003 #4-#6: extensions use fixed days and a configurable rent selected by staff-free happy.
 async function fillOfferExtensionForm(propertyId) {
     const propertyData = await getProperties();
     const property = propertyData.properties.find((candidate) => String(candidate.id) === String(propertyId));
@@ -223,13 +227,15 @@ async function fillOfferExtensionForm(propertyId) {
     const costInput = document.querySelector('input.offerExtension.input-money[data-name="offercost"][type="text"]');
     const daysInput = document.querySelector('input.offerExtension.input-money[data-name="days"][type="text"]');
 
-    const logData = await apiRequest(`log&log=${RENT_LOG_IDS}`);
-    const terms = findLastRentalTerms(logData, propertyId, property.rented_by.id);
-    if (terms) {
-        if (costInput) setMoneyInputValue(costInput, terms.rent);
-        if (daysInput) setMoneyInputValue(daysInput, terms.days);
-        $('.offerExtension-form input[type="submit"]').prop('disabled', false);
+    const defaultRent = extensionRentByHappy[getPropertyHappy(property)];
+    if (daysInput) setMoneyInputValue(daysInput, EXTENSION_DAYS);
+    if (defaultRent === undefined) {
+        if (costInput) setMoneyInputValue(costInput, '');
+        $('.offerExtension-form input[type="submit"]').prop('disabled', true);
+        return;
     }
+    if (costInput) setMoneyInputValue(costInput, defaultRent);
+    $('.offerExtension-form input[type="submit"]').prop('disabled', false);
 }
 
 function checkTabAndRunScript(playerId) {
