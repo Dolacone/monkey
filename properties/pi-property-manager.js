@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PI Property Manager
 // @namespace    pi.property.manager
-// @version      1.1.2
+// @version      1.1.3
 // @description  Overview table for your Private Island properties, with auto-filled extension terms
 // @author       Dola
 // @license      MIT
@@ -59,10 +59,9 @@ function parseApiResponse(response) {
     return data;
 }
 
-function apiRequest(selections) {
-    const url = `https://api.torn.com/user/?selections=${selections}&key=${apikey}&comment=PIPropertyManager`;
+function requestUrl(url, requestName) {
     const rejectWithContext = (error) => {
-        throw new Error(`${selections}: ${formatError(error)}`);
+        throw new Error(`${requestName}: ${formatError(error)}`);
     };
 
     if (typeof window.PDA_httpGet === 'function') {
@@ -84,12 +83,27 @@ function apiRequest(selections) {
                 try {
                     resolve(parseApiResponse(response));
                 } catch (e) {
-                    reject(new Error(`${selections}: ${formatError(e)}`));
+                    reject(new Error(`${requestName}: ${formatError(e)}`));
                 }
             },
-            onerror: (error) => reject(new Error(`${selections}: ${formatError(error)}`)),
+            onerror: (error) => reject(new Error(`${requestName}: ${formatError(error)}`)),
         });
     });
+}
+
+function apiRequest(selections) {
+    const url = `https://api.torn.com/user/?selections=${selections}&key=${apikey}&comment=PIPropertyManager`;
+    return requestUrl(url, selections);
+}
+
+function apiV2Request(path, query) {
+    const suffix = query ? `&${query}` : '';
+    const url = `https://api.torn.com/v2/${path}?key=${apikey}&comment=PIPropertyManager${suffix}`;
+    return requestUrl(url, path);
+}
+
+function getProperties() {
+    return apiV2Request('user/properties', 'filters=ownedByUser&limit=100');
 }
 
 // REQ-003 #3: find this renter's last agreed days/rent for this property from the activity log.
@@ -114,35 +128,31 @@ function setMoneyInputValue(input, value) {
 }
 
 function ownedPiProperties(properties, playerId) {
-    const result = [];
-    $.each(properties, function (id, value) {
-        if (String(value.owner_id) === String(playerId) && value.property_type === PI_PROPERTY_TYPE) {
-            result.push({ id, ...value });
-        }
-    });
-    return result;
+    return (properties || []).filter(
+        (value) => String(value.owner?.id) === String(playerId) && value.property?.id === PI_PROPERTY_TYPE,
+    );
 }
 
 // REQ-002 #6: open properties first (sorted by happy ascending), then rented ones
-// ordered by soonest-expiring first (days_left ascending).
+// ordered by soonest-expiring first (rental_period_remaining ascending).
 function sortProperties(properties) {
     return properties.slice().sort((a, b) => {
-        if (!a.rented && !b.rented) return a.happy - b.happy;
-        if (!a.rented) return -1;
-        if (!b.rented) return 1;
-        return a.rented.days_left - b.rented.days_left;
+        const aRented = a.status === 'rented';
+        const bRented = b.status === 'rented';
+        if (!aRented && !bRented) return a.happy - b.happy;
+        if (!aRented) return -1;
+        if (!bRented) return 1;
+        return a.rental_period_remaining - b.rental_period_remaining;
     });
 }
 
-function buildStatusCell(property, logData) {
-    if (!property.rented) return 'Open';
-    const terms = findLastRentalTerms(logData, property.id, property.rented.user_id);
-    const totalDays = terms ? terms.days : Math.round(property.rented.total_cost / property.rented.cost_per_day);
-    return `${property.rented.days_left}/${totalDays} days`;
+function buildStatusCell(property) {
+    if (property.status !== 'rented') return 'Open';
+    return `${property.rental_period_remaining}/${property.rental_period} days`;
 }
 
 function buildLinkCell(property) {
-    const tab = property.rented ? 'offerExtension' : 'lease';
+    const tab = property.status === 'rented' ? 'offerExtension' : 'lease';
     // Must be an absolute URL: a bare "#/p=options&..." href keeps whatever query string
     // the current page has (e.g. "?step=rentalmarket"), which the properties.php router
     // does not recognize together with the p=options route, producing a dead link.
@@ -159,10 +169,10 @@ function buildLinkCell(property) {
 // stylesheet chunk is absent, so those classes render as unstyled inline text. Confirmed live
 // on 2026-08-24: identical markup looked correct under step=rentalmarket and collapsed on the
 // plain list page. The table below is self-contained CSS instead.
-function buildManagerHtml(properties, logData, statusMessage) {
+function buildManagerHtml(properties, statusMessage) {
     const rows = properties
         .map((p) => {
-            const status = buildStatusCell(p, logData);
+            const status = buildStatusCell(p);
             const href = buildLinkCell(p);
             return `<tr><td>${p.happy}</td><td>${status}</td><td><a href="${href}" class="pi-manage-link">Manage</a></td></tr>`;
         })
@@ -187,34 +197,34 @@ async function drawListPage(playerId) {
     if (anchor.length === 0) return;
 
     if (!apikey) {
-        anchor.after(buildManagerHtml([], {}, 'Set your API key in the CONFIG SETTINGS section at the top of the script.'));
+        anchor.after(buildManagerHtml([], 'Set your API key in the CONFIG SETTINGS section at the top of the script.'));
         return;
     }
 
-    anchor.after(buildManagerHtml([], {}, 'Loading properties...'));
+    anchor.after(buildManagerHtml([], 'Loading properties...'));
 
     try {
-        const [profileData, logData] = await Promise.all([apiRequest('profile,properties'), apiRequest(`log&log=${RENT_LOG_IDS}`)]);
-        const properties = sortProperties(ownedPiProperties(profileData.properties, playerId));
-        $('#pi-manager').replaceWith(buildManagerHtml(properties, logData));
+        const propertyData = await getProperties();
+        const properties = sortProperties(ownedPiProperties(propertyData.properties, playerId));
+        $('#pi-manager').replaceWith(buildManagerHtml(properties));
     } catch (e) {
         log('Failed to load property data', e);
-        $('#pi-manager').replaceWith(buildManagerHtml([], {}, 'Failed to load property data: ' + formatError(e)));
+        $('#pi-manager').replaceWith(buildManagerHtml([], 'Failed to load property data: ' + formatError(e)));
     }
 }
 
 // REQ-003 #3/#4: prefill only when this renter's last agreed terms are found in the
 // activity log. Lease (open properties) is not auto-filled at all - see DESIGN.md.
 async function fillOfferExtensionForm(propertyId) {
-    const profileData = await apiRequest('properties');
-    const property = profileData.properties[propertyId];
-    if (!property || !property.rented) return;
+    const propertyData = await getProperties();
+    const property = propertyData.properties.find((candidate) => String(candidate.id) === String(propertyId));
+    if (!property || property.status !== 'rented') return;
 
     const costInput = document.querySelector('input.offerExtension.input-money[data-name="offercost"][type="text"]');
     const daysInput = document.querySelector('input.offerExtension.input-money[data-name="days"][type="text"]');
 
     const logData = await apiRequest(`log&log=${RENT_LOG_IDS}`);
-    const terms = findLastRentalTerms(logData, propertyId, property.rented.user_id);
+    const terms = findLastRentalTerms(logData, propertyId, property.rented_by.id);
     if (terms) {
         if (costInput) setMoneyInputValue(costInput, terms.rent);
         if (daysInput) setMoneyInputValue(daysInput, terms.days);

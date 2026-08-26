@@ -25,15 +25,15 @@ Torn 的金額輸入框(`input-money`)是「顯示用文字框 + 隱藏送出用
 
 ## 資料來源
 
-- 房產清單:Torn API `user?selections=properties`。
+- 房產清單:Torn API v2 `/user/properties?filters=ownedByUser&limit=100`。出租資料直接使用 `rental_period_remaining` 與 `rental_period`。
 - 續約金額/天數的歷史紀錄:Torn API `user?selections=log&log=5943,5937`,比對 `data.property_id` 與 `data.renter`。
 - API key 位於腳本頂端的 CONFIG SETTINGS 區塊(`const apikey`)。預設值是 `###PDA-APIKEY###`,Torn PDA 在執行前替換成 app 已設定的 API key。桌面 Tampermonkey 使用者自行把 placeholder 改成實際 API key。API key 不存在 localStorage,頁面也不提供輸入欄位。
 - Torn PDA 以 `PDA_httpGet` 的存在判斷 app 環境,但對 `api.torn.com` 使用標準 `fetch`。桌面 Tampermonkey 使用 `GM_xmlhttpRequest`。請求失敗時顯示 selection、錯誤型別與訊息。
 
 ## 已知限制
 
-- `rented` 為 `null` 時無法區分「已上架市場」與「完全未上架」,兩者在 API 回傳上長得一樣(REQ-002 已明確採用不區分的做法)。
-- 續約狀態欄位若在活動紀錄中找不到對應的歷史筆數(例如記錄超出 API 可查詢範圍),會退回用 `total_cost / cost_per_day` 四捨五入估算原始天數,估算值可能有誤差。
+- API v2 可以區分 `none`、`in_use`、`for_sale`、`for_rent` 與 `rented`。REQ-002 將 `rented` 以外的狀態統一顯示為 `Open`。
+- 活動紀錄只供續約表單沿用租金與天數。總覽狀態不依賴活動紀錄。
 - 上架頁籤(lease)不自動填值,詳見 `DESIGN.md` 的 REQ-003 章節。
 
 ## 曾經試過但放棄的做法:借用 Torn 的 rental market class

@@ -11,6 +11,6 @@
 
 ## 續約沿用既有條件
 
-3. 當房產目前為出租中(`rented` 不為 null)時,續約頁籤(offerExtension)的天數與租金輸入框,帶入這位房客(`rented.user_id`)上一次針對這間房產議定的天數與租金。這兩個數字向 Torn API 的 `user` 端點、`log` selection(`log=5943,5937`)取得,比對紀錄中的 `data.property_id` 與 `data.renter`,取相符紀錄的 `data.days` 與 `data.rent`。不使用 `total_cost / cost_per_day` 推算(該除法除不盡,`cost_per_day` 是四捨五入後的值,反推天數會有誤差)。
+3. 當房產的 `status` 為 `rented` 時,續約頁籤(offerExtension)的天數與租金輸入框,帶入這位房客(`rented_by.id`)上一次針對這間房產議定的天數與租金。這兩個數字向 Torn API 的 `user` 端點、`log` selection(`log=5943,5937`)取得,比對紀錄中的 `data.property_id` 與 `data.renter`,取相符紀錄的 `data.days` 與 `data.rent`。不使用租金除以每日租金推算天數。
 4. 若續約頁籤找不到第 3 條的歷史紀錄,欄位維持空白,交由使用者自行輸入。
 5. 上架頁籤(lease)不自動填值,天數與租金一律由使用者自行輸入。
