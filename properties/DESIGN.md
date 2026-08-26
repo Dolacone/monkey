@@ -2,7 +2,7 @@
 
 實作取捨與放棄過的做法紀錄,依 REQ 編號索引。REQ-002 條件 7 以桌面側欄與手機設定選單兩個登入玩家連結取得 player_id,避免窄螢幕不渲染桌面側欄時中止腳本。表格容器允許水平捲動,讓窄螢幕仍可存取全部欄位與連結。Node 測試涵蓋兩個登入玩家選擇器、誤抓其他玩家的負向案例,以及窄螢幕的水平捲動樣式。
 
-REQ-003 條件 2 使用 Torn PDA 的 `###PDA-APIKEY###` placeholder。Torn PDA 注入 app 已設定的 key,桌面 Tampermonkey 使用者直接替換 placeholder。Node 測試固定 placeholder,避免更新時改回空字串或寫入實際 key。
+REQ-003 條件 2 至 4 保留 Torn PDA 的 `###PDA-APIKEY###` placeholder。桌面 Tampermonkey 改用 `GM_getValue` 與 `GM_setValue`,避免自動更新覆蓋 API key。`@name` 與 `@namespace` 必須保持不變,讓 Tampermonkey 沿用同一份腳本 storage。Node 測試分別覆蓋 PDA、桌面讀取、選單確認與取消。
 
 REQ-002 條件 1 依執行環境選擇 HTTP transport。Torn PDA 的 `window.PDA_httpGet` 存在時,對 `api.torn.com` 使用標準 `fetch`;否則使用 Tampermonkey 的 `GM_xmlhttpRequest`。Torn PDA 3.15.0 的 `PDA_httpGet` 在 iOS 實測回傳 `undefined`,而 Torn PDA 官方 userscript 對相同 API 網域使用 `fetch`。兩條路徑共用回應解析與錯誤格式,避免 JavaScript `Error` 經 `JSON.stringify` 後只顯示 `{}`。Node 測試分別覆蓋兩條 transport、HTTP 狀態與錯誤內容。
 
@@ -12,7 +12,7 @@ REQ-002 條件 3 將 API 的 `staff.amount` 解讀為該 staff 類型的加成�
 
 REQ-002 條件 6 使用單一 comparator 依序比較 staff-free happy、是否為 Open、`rental_period_remaining` 與 `rental_period`。Node 測試以交錯資料固定四個排序鍵的優先級。
 
-REQ-003 條件 3 至 6 不再查詢活動紀錄。續約表單固定填入 15 天,再依 staff-free happy 查詢 CONFIG SETTINGS 的租金。Node 測試覆蓋 3725、4225 與未知 happy。
+REQ-003 條件 5 至 8 不再查詢活動紀錄。續約表單固定填入 15 天,再依 staff-free happy 查詢 CONFIG SETTINGS 的租金。Node 測試覆蓋 3725、4225 與未知 happy。
 
 ## REQ-003:上架頁籤(lease)的自動學習預設值 — 已放棄
 

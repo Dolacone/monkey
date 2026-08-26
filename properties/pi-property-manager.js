@@ -1,19 +1,24 @@
 // ==UserScript==
 // @name         PI Property Manager
 // @namespace    pi.property.manager
-// @version      1.2.1
+// @version      1.3.0
 // @description  Overview table for your Private Island properties, with auto-filled extension terms
 // @author       Dola
 // @license      MIT
 // @match        https://www.torn.com/properties.php*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=torn.com
+// @downloadURL  https://raw.githubusercontent.com/Dolacone/monkey/refs/heads/master/properties/pi-property-manager.js
+// @updateURL    https://raw.githubusercontent.com/Dolacone/monkey/refs/heads/master/properties/pi-property-manager.js
 // @grant        GM_xmlhttpRequest
 // @grant        GM_addStyle
+// @grant        GM_getValue
+// @grant        GM_setValue
+// @grant        GM_registerMenuCommand
 // @require      https://code.jquery.com/jquery-1.8.2.min.js
 // ==/UserScript==
 
 /******************** CONFIG SETTINGS ********************/
-const apikey = '###PDA-APIKEY###'; // Torn PDA replaces this; desktop users replace it manually.
+const pdaApiKey = '###PDA-APIKEY###';
 const extensionRentByHappy = {
     3725: 9000000,
     4225: 13000000,
@@ -30,6 +35,22 @@ const STAFF_HAPPY_BY_LEVEL = {
     Pilot: [0, 50],
 };
 const DEBUG = 0;
+
+function getApiKey() {
+    if (typeof window.PDA_httpGet === 'function') return pdaApiKey;
+    return typeof GM_getValue === 'function' ? GM_getValue('apikey', '') : '';
+}
+
+const apikey = getApiKey();
+
+if (typeof GM_registerMenuCommand === 'function') {
+    GM_registerMenuCommand('Set Torn API key', () => {
+        const value = window.prompt('Torn API key');
+        if (value === null) return;
+        GM_setValue('apikey', value.trim());
+        window.location.reload();
+    });
+}
 
 function log(...args) {
     if (DEBUG) console.log('[PIPropertyManager]', ...args);
@@ -206,7 +227,7 @@ async function drawListPage(playerId) {
     if (anchor.length === 0) return;
 
     if (!apikey) {
-        anchor.after(buildManagerHtml([], 'Set your API key in the CONFIG SETTINGS section at the top of the script.'));
+        anchor.after(buildManagerHtml([], 'Set your API key from the Tampermonkey menu.'));
         return;
     }
 
@@ -222,7 +243,7 @@ async function drawListPage(playerId) {
     }
 }
 
-// REQ-003 #4-#6: extensions use fixed days and a configurable rent selected by staff-free happy.
+// REQ-003 #6-#8: extensions use fixed days and a configurable rent selected by staff-free happy.
 async function fillOfferExtensionForm(propertyId) {
     const propertyData = await getProperties();
     const property = propertyData.properties.find((candidate) => String(candidate.id) === String(propertyId));

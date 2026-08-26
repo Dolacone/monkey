@@ -5,6 +5,7 @@ const vm = require('node:vm');
 
 function loadScript() {
     let styles = '';
+    let menuCommand;
     const source = fs.readFileSync('pi-property-manager.js', 'utf8');
     const context = {
         clearTimeout,
@@ -14,6 +15,11 @@ function loadScript() {
         GM_addStyle: (value) => {
             styles = value;
         },
+        GM_getValue: (key, fallback) => fallback,
+        GM_registerMenuCommand: (name, callback) => {
+            menuCommand = { callback, name };
+        },
+        GM_setValue: () => {},
         GM_xmlhttpRequest: () => {},
         MutationObserver: function MutationObserver() {},
         setTimeout,
@@ -22,7 +28,7 @@ function loadScript() {
     };
     vm.createContext(context);
     vm.runInContext(source, context);
-    return { context, source, styles };
+    return { context, menuCommand, source, styles };
 }
 
 function profileLink(playerId) {
@@ -52,12 +58,63 @@ test('REQ-002 #7: narrow screens can reach columns that exceed the panel width',
     assert.match(styles, /#pi-manager[\s\S]*overflow-x:\s*auto/);
 });
 
-test('REQ-003 #2: Torn PDA can inject its configured API key', () => {
+test('REQ-001 #4: metadata points Tampermonkey updates at the published script', () => {
     const { source } = loadScript();
-    assert.match(source, /const apikey = '###PDA-APIKEY###';/);
+    const rawUrl = 'https://raw.githubusercontent.com/Dolacone/monkey/refs/heads/master/properties/pi-property-manager.js';
+
+    assert.match(source, new RegExp(`@downloadURL\\s+${rawUrl.replaceAll('.', '\\.')}`));
+    assert.match(source, new RegExp(`@updateURL\\s+${rawUrl.replaceAll('.', '\\.')}`));
 });
 
-test('REQ-003 #3: extension rents remain editable in CONFIG SETTINGS', () => {
+test('REQ-003 #2: Torn PDA keeps using its injected API key', () => {
+    const { context, source } = loadScript();
+    context.window.PDA_httpGet = () => {};
+    context.GM_getValue = () => {
+        throw new Error('PDA must not read Tampermonkey storage');
+    };
+
+    assert.match(source, /const pdaApiKey = '###PDA-APIKEY###';/);
+    assert.equal(context.getApiKey(), '###PDA-APIKEY###');
+});
+
+test('REQ-003 #3: desktop reads the API key from Tampermonkey storage', () => {
+    const { context, source } = loadScript();
+    context.GM_getValue = (key, fallback) => (key === 'apikey' ? 'stored-key' : fallback);
+
+    assert.match(source, /@grant\s+GM_getValue/);
+    assert.equal(context.getApiKey(), 'stored-key');
+});
+
+test('REQ-003 #4: the menu stores a trimmed API key and reloads', () => {
+    const { context, menuCommand, source } = loadScript();
+    let reloaded = false;
+    let stored;
+    context.window.prompt = () => '  new-key  ';
+    context.window.location = { reload: () => { reloaded = true; } };
+    context.GM_setValue = (key, value) => { stored = [key, value]; };
+
+    assert.match(source, /@grant\s+GM_setValue/);
+    assert.match(source, /@grant\s+GM_registerMenuCommand/);
+    assert.equal(menuCommand.name, 'Set Torn API key');
+    menuCommand.callback();
+    assert.deepEqual(stored, ['apikey', 'new-key']);
+    assert.equal(reloaded, true);
+});
+
+test('REQ-003 #4: cancelling the menu leaves the stored API key unchanged', () => {
+    const { context, menuCommand } = loadScript();
+    context.window.prompt = () => null;
+    context.GM_setValue = () => {
+        throw new Error('cancel must not write storage');
+    };
+    context.window.location = { reload: () => {
+        throw new Error('cancel must not reload');
+    } };
+
+    menuCommand.callback();
+});
+
+test('REQ-003 #5: extension rents remain editable in CONFIG SETTINGS', () => {
     const { source } = loadScript();
     const config = source.match(/CONFIG SETTINGS \*+\/(.*?)\/\*+ END CONFIG SETTINGS/s)?.[1];
 
@@ -271,7 +328,7 @@ async function extensionWritesFor(context, property) {
     return { disabled, writes };
 }
 
-test('REQ-003 #3-#5: 3725 happy uses fixed days and its configured rent', async () => {
+test('REQ-003 #5-#7: 3725 happy uses fixed days and its configured rent', async () => {
     const { context } = loadScript();
     const result = await extensionWritesFor(context, {
         happy: 4525,
@@ -288,7 +345,7 @@ test('REQ-003 #3-#5: 3725 happy uses fixed days and its configured rent', async 
     assert.equal(result.disabled, false);
 });
 
-test('REQ-003 #3-#5: 4225 happy uses fixed days and its configured rent', async () => {
+test('REQ-003 #5-#7: 4225 happy uses fixed days and its configured rent', async () => {
     const { context } = loadScript();
     const result = await extensionWritesFor(context, { happy: 4275, staff: [{ type: 'Pilot', amount: 1 }] });
 
@@ -296,7 +353,7 @@ test('REQ-003 #3-#5: 4225 happy uses fixed days and its configured rent', async 
     assert.equal(result.disabled, false);
 });
 
-test('REQ-003 #6: unknown happy fills days but leaves rent empty', async () => {
+test('REQ-003 #8: unknown happy fills days but leaves rent empty', async () => {
     const { context } = loadScript();
     const result = await extensionWritesFor(context, { happy: 4000, staff: [] });
 

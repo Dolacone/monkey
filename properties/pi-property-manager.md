@@ -5,6 +5,7 @@
 ## 頁面範圍與進入點
 
 - `@match https://www.torn.com/properties.php*`。
+- `@downloadURL` 與 `@updateURL` 指向 GitHub master branch 的 raw script。Tampermonkey 依 `@version` 判斷更新。
 - 頁面是 SPA,切換頁籤不會整頁刷新,靠 `MutationObserver` 監控 `#properties-page-wrap` 的子節點變化,搭配 500ms debounce 後重新判斷目前頁面狀態。
 - 目前頁面狀態由 URL hash 判斷,格式為 `#/p=options&ID=<propertyId>&tab=<tab>`:
   - hash 無 `tab` 參數(清單頁):顯示總覽表格。
@@ -27,7 +28,7 @@ Torn 的金額輸入框(`input-money`)是「顯示用文字框 + 隱藏送出用
 ## 資料來源
 
 - 房產清單:Torn API v2 `/user/properties?filters=ownedByUser&limit=100`。出租資料直接使用 `rental_period_remaining` 與 `rental_period`。
-- API key 位於腳本頂端的 CONFIG SETTINGS 區塊(`const apikey`)。預設值是 `###PDA-APIKEY###`,Torn PDA 在執行前替換成 app 已設定的 API key。桌面 Tampermonkey 使用者自行把 placeholder 改成實際 API key。API key 不存在 localStorage,頁面也不提供輸入欄位。
+- Torn PDA 在執行前將 `###PDA-APIKEY###` 替換成 app 已設定的 API key。桌面 Tampermonkey 從 `GM_getValue('apikey')` 讀取。`Set Torn API key` 選單使用 `GM_setValue` 儲存,因此腳本更新不會覆蓋 key。實際 API key 不存在頁面或 userscript 原始碼。
 - 續約租金位於 CONFIG SETTINGS 的 `extensionRentByHappy`。預設值為 happy 3725 對應 9000000,happy 4225 對應 13000000。續約天數固定為 15。
 - Torn PDA 以 `PDA_httpGet` 的存在判斷 app 環境,但對 `api.torn.com` 使用標準 `fetch`。桌面 Tampermonkey 使用 `GM_xmlhttpRequest`。請求失敗時顯示 selection、錯誤型別與訊息。
 
@@ -36,6 +37,7 @@ Torn 的金額輸入框(`input-money`)是「顯示用文字框 + 隱藏送出用
 - API v2 可以區分 `none`、`in_use`、`for_sale`、`for_rent` 與 `rented`。REQ-002 將 `rented` 以外的狀態統一顯示為 `Open`。
 - API 的 `staff.amount` 是加成等級。腳本依 staff 類型與等級扣除 Happy 加成。未知類型或等級不扣除。
 - staff-free happy 沒有對應租金設定時,續約表單只填入 15 天。租金由使用者自行輸入。
+- 桌面 Tampermonkey 尚未設定 API key 時,總覽顯示使用 userscript 選單設定 key 的訊息。
 - 上架頁籤(lease)不自動填值,詳見 `DESIGN.md` 的 REQ-003 章節。
 
 ## 曾經試過但放棄的做法:借用 Torn 的 rental market class

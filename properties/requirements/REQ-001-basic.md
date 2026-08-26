@@ -9,3 +9,4 @@
 1. 腳本以 Tampermonkey userscript metadata 宣告。
 2. `@match` 涵蓋 `https://www.torn.com/properties.php*`。
 3. 腳本是全新獨立檔案,不修改 sample.js,也不依賴 sample.js 的任何函式或狀態。
+4. `@downloadURL` 與 `@updateURL` 都指向 GitHub master branch 的 `properties/pi-property-manager.js` raw URL。
