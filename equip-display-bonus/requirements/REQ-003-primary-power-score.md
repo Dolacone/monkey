@@ -46,7 +46,8 @@
 
 ### 加成
 
-17. 計入戰力值的加成：Achilles、Assassinate、Blindside、Conserve、Cupid、Deadeye、Expose、Penetrate、Powerful、Quicken、Specialist、Sure Shot、Throttle。
-18. 其餘加成不影響數字，並觸發條件 4 的 `+X`，包含戰鬥中有效果但沒有計入的加成（例如 Comeback、Puncture、Focus、Weaken、Disarm），也包含跟戰鬥無關的加成（Plunder、Proficience、Revitalize、Stricken、Warlord）。
+17. 計入戰力值的加成：Achilles、Assassinate、Blindside、Conserve、Cupid、Deadeye、Expose、Penetrate、Powerful、Puncture、Quicken、Specialist、Sure Shot、Throttle。
+18. 其餘加成不影響數字，並觸發條件 4 的 `+X`，包含戰鬥中有效果但沒有計入的加成（例如 Comeback、Focus、Weaken、Disarm），也包含跟戰鬥無關的加成（Plunder、Proficience、Revitalize、Stricken、Warlord）。
 19. Specialist 讓整場只有一個彈匣、不能 reload；Conserve 的百分比跟 education、Recoil Pad 的 ammo conservation 相乘疊加剩餘比例。
 20. 武器有兩個加成時，兩個加成的效果一起計入。
+21. Puncture 每次命中有該百分比的機率完全無視對手的護甲減免；Sentinel 套裝加成的 Defense 照常計算。

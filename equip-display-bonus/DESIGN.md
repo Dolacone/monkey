@@ -28,7 +28,7 @@ Torn 在三個頁面用不同前端框架渲染裝備清單,腳本因此分成�
 
 - 雙方 maxDamage、Defense 減傷對每把武器都是同一個倍率,除以基準武器後抵消,所以公式裡沒有屬性絕對值。
 - 命中率:我方 Speed 被動 44%、對手 Dexterity 被動 49%,比值代入 `hitChance()`,再用 `applyAccuracy()` 套上 Accuracy + merits 2 + Sight 1.75(有裝時)。Quicken 加進 Speed 被動;Sure Shot 換算成 `s + (1 - s) x 命中率`。
-- 每次命中的期望傷害:爆擊部位表與非爆擊部位表依 crit 機率(20 + Laser 5 + Expose)加權,每個部位乘上 Sentinel 護甲減免 `1 - 覆蓋率 x 58 x (1 - Penetrate%) / PI 穿透 2 / 100`。Powerful/Specialist、部位加成、Deadeye(只加在爆擊部位)與 merits 10% 相加進同一個傷害百分比。
+- 每次命中的期望傷害:爆擊部位表與非爆擊部位表依 crit 機率(20 + Laser 5 + Expose)加權,每個部位乘上 Sentinel 護甲減免 `1 - 覆蓋率 x 58 x (1 - Penetrate%) / PI 穿透 2 / 100`。Puncture 以觸發機率在「護甲減免」與「無護甲」之間加權,不移除 Sentinel 的 Defense 加成:模擬器把那個加成直接加進 Defense,是暫時的簡化,讓 Puncture 移除它會把簡化放大。torn-fight-simulator 沒有實作 Puncture,這一項沒有模擬結果可以對照。Powerful/Specialist、部位加成、Deadeye(只加在爆擊部位)與 merits 10% 相加進同一個傷害百分比。
 - 出手次數:`attackCounts()` 對「彈匣剩餘彈數 x 剩餘 reload 次數」做確定性的機率轉移,每次出手的消耗量是 Rate of Fire 均勻分布乘上 conservation 剩餘比例後的 stochastic rounding,跟模擬器同一套規則。25 回合內的期望出手次數給爆發戰力,打光為止的期望出手次數給續航戰力。
 - Assassinate 只加在第 1 回合那一次出手;Blindside 只加在第一次命中,乘上「這段期間至少命中一次」的機率。
 - 每把武器的 mod 不讀頁面,固定依 REQ-003 條件 13 的順序推導;Recoil Pad 與 Sight 的可裝類型、Nock Gun 例外取自 Torn wiki 的 Weapon Mod 頁面。

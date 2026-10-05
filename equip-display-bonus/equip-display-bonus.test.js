@@ -69,7 +69,7 @@ test('REQ-003 #17: every computed bonus changes the score', () => {
     const cases = [
         ['Enfield SA-80', 'Achilles'], ['Enfield SA-80', 'Assassinate'], ['Benelli M4 Super', 'Blindside'],
         ['Enfield SA-80', 'Conserve'], ['Enfield SA-80', 'Cupid'], ['Enfield SA-80', 'Deadeye'],
-        ['Enfield SA-80', 'Expose'], ['Enfield SA-80', 'Penetrate'], ['Enfield SA-80', 'Powerful'],
+        ['Enfield SA-80', 'Expose'], ['Enfield SA-80', 'Penetrate'], ['Enfield SA-80', 'Powerful'], ['Enfield SA-80', 'Puncture'],
         ['MP5 Navy', 'Quicken'], ['Enfield SA-80', 'Specialist'], ['Enfield SA-80', 'Sure Shot'], ['Enfield SA-80', 'Throttle'],
     ];
     cases.forEach(([name, bonusName]) => {
@@ -98,6 +98,15 @@ test('REQ-003 #13: Nock Gun cannot take a Recoil Pad, so it burns ammo faster th
     const nock = calcPowerScore({ name: 'Nock Gun', damage: 60, accuracy: 55, bonuses: [] }, SIG_BASE);
     const benelli = calcPowerScore({ name: 'Benelli M1 Tactical', damage: 60, accuracy: 55, bonuses: [] }, SIG_BASE);
     assert.ok(nock.sustain < benelli.sustain);
+});
+
+test('REQ-003 #21: Puncture only removes armour, so p% Puncture matches p% Penetrate in expectation', () => {
+    // If Puncture also dropped the Sentinel Defense bonus, it would far exceed Penetrate.
+    const score = (name) => calcPowerScore({ name: 'SIG 552', damage: 74, accuracy: 55, bonuses: [bonus(name, 33)] }, SIG_BASE);
+    const puncture = score('Puncture');
+    const penetrate = score('Penetrate');
+    assert.ok(Math.abs(puncture.burst - penetrate.burst) <= 1);
+    assert.ok(Math.abs(puncture.sustain - penetrate.sustain) <= 1);
 });
 
 test('REQ-003 #20: two computed bonuses stack', () => {

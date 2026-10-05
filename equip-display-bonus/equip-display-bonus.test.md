@@ -9,5 +9,5 @@ Regression tests for the power score functions in `equip-display-bonus.js` (`cal
 - 確定性(條件 16):同一把武器兩次計算結果相同。
 - 排除名單(條件 5-7):Dual、活動武器、近戰、副武器、盔甲、空名稱都沒有戰力值。
 - `+X`(條件 4、18):不計入的加成只加標記、不改數字;跟戰鬥無關的 5 個加成也要加標記;沒有不計入加成時不加標記。
-- 加成效果(條件 17、19、20):13 個計入的加成各自都會改變數字;Specialist 只有一個彈匣,續航戰力比同款可 reload 武器掉得比爆發戰力多;Conserve 對續航的提升大於爆發;兩個加成會疊加。
+- 加成效果(條件 17、19、20):14 個計入的加成各自都會改變數字;Puncture 只無視護甲(條件 21),期望值跟同百分比的 Penetrate 相同;Specialist 只有一個彈匣,續航戰力比同款可 reload 武器掉得比爆發戰力多;Conserve 對續航的提升大於爆發;兩個加成會疊加。
 - Mod 推導(條件 13):Nock Gun 不能裝 Recoil Pad,續航戰力低於彈匣相同、可裝 Pad 的 Benelli M1 Tactical。

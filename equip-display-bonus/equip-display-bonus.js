@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn: Equipment Bonus Display
 // @namespace    equip-display-bonus
-// @version      1.1.3
+// @version      1.1.4
 // @description  Permanently overlay weapon/armor bonus name + percentage, plus a primary weapon power score, on Item Market, Faction Armoury, Auction House, and Items
 // @match        https://www.torn.com/page.php?sid=ItemMarket*
 // @match        https://www.torn.com/factions.php*
@@ -103,6 +103,7 @@
     Expose: { type: 'critChance' },
     Penetrate: { type: 'penetrate' },
     Powerful: { type: 'flat' },
+    Puncture: { type: 'puncture' },
     Quicken: { type: 'speed' },
     Specialist: { type: 'flat', noReload: true },
     'Sure Shot': { type: 'sureShot' },
@@ -166,7 +167,7 @@
     const hasSight = !hasPad && SIGHT_TYPES.includes(type);
 
     const fx = {
-      flat: 0, critDamage: 0, critChance: 0, penetrate: 0, conserve: 0, speed: 0,
+      flat: 0, critDamage: 0, critChance: 0, penetrate: 0, puncture: 0, conserve: 0, speed: 0,
       sureShot: 0, firstTurn: 0, firstHit: 0, parts: {}, noReload: false,
     };
     let partial = false;
@@ -188,8 +189,9 @@
     pHit = fx.sureShot / 100 + (1 - fx.sureShot / 100) * pHit;
 
     const critPct = BASE_CRIT_PCT + LASER_CRIT_PCT + fx.critChance;
-    const armour = (part) => 1 - (SENTINEL_COVERAGE[part] / 100) * SENTINEL_ARMOUR *
-      (1 - fx.penetrate / 100) / PI_PENETRATION / 100;
+    // Puncture skips armour mitigation entirely on a proc; the Sentinel Defense bonus still applies.
+    const armour = (part) => fx.puncture / 100 + (1 - fx.puncture / 100) *
+      (1 - (SENTINEL_COVERAGE[part] / 100) * SENTINEL_ARMOUR * (1 - fx.penetrate / 100) / PI_PENETRATION / 100);
     const perHit = (extraPct) => {
       let sum = 0;
       CRIT_PARTS.forEach(([part, share]) => {
