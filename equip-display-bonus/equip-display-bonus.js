@@ -1,12 +1,14 @@
 // ==UserScript==
 // @name         Torn: Equipment Bonus Display
 // @namespace    equip-display-bonus
-// @version      1.1.0
+// @version      1.1.1
 // @description  Permanently overlay weapon/armor bonus name + percentage, plus a primary weapon power score, on Item Market, Faction Armoury, and Auction House
 // @match        https://www.torn.com/page.php?sid=ItemMarket*
 // @match        https://www.torn.com/factions.php*
 // @match        https://www.torn.com/amarket.php*
 // @match        https://www.torn.com/item.php*
+// @downloadURL  https://raw.githubusercontent.com/Dolacone/monkey/refs/heads/master/equip-display-bonus/equip-display-bonus.js
+// @updateURL    https://raw.githubusercontent.com/Dolacone/monkey/refs/heads/master/equip-display-bonus/equip-display-bonus.js
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @run-at       document-idle
