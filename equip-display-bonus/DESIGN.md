@@ -37,7 +37,7 @@ Torn 在三個頁面用不同前端框架渲染裝備清單,腳本因此分成�
 
 蒙地卡羅模擬的誤差在這裡不存在,所以戰力值顯示原始整數,不四捨五入。
 
-基準武器只能在 Items 頁面取得(其他三個頁面沒有「裝備中」的標記),所以多 match `item.php`,只寫入 `GM_setValue`、不渲染。用 `GM_getValue/GM_setValue` 而不是頁面的 `localStorage`,跟 properties 腳本保存 API key 的做法一致,腳本更新後仍保留。
+基準武器只能在 Items 頁面取得(其他三個頁面沒有「裝備中」的標記)。`item.php` 每次掃描先記錄基準再渲染,讓 Items 頁面本身的戰力值也用最新基準。用 `GM_getValue/GM_setValue` 而不是頁面的 `localStorage`,跟 properties 腳本保存 API key 的做法一致,腳本更新後仍保留。
 
 ## 測試涵蓋
 
@@ -45,7 +45,7 @@ Torn 在三個頁面用不同前端框架渲染裝備清單,腳本因此分成�
 
 公式另外跟 torn-fight-simulator 的蒙地卡羅結果逐一對照過 10 組武器與加成(Rifle、SMG + Sight + Quicken、Machine Gun、Shotgun + Blindside、Nock Gun 只裝 Laser、Specialist、Conserve、Assassinate、部位加成,各 40000 場),爆發與續航戰力最大誤差 0.43%,在模擬器本身的抽樣誤差範圍內。這個對照依賴另一個 repo,沒有放進自動化測試;測試檔只保留三個模擬器數值當回歸基準。
 
-DOM 讀取與疊加顯示沒有自動化測試。REQ-003 已在真實頁面注入腳本手動驗證:Items 頁面記下裝備中的 Steyr AUG(74.93 / 54.66)且沒有渲染疊加文字;Item Market Primary 頁 60 件、Faction Armoury 47 件、Auction House 10 件都正確顯示戰力值第一行、加成接在下面;沒有加成的主武器只顯示戰力值;近戰與 Dual 武器沒有戰力值;不計入的加成帶 `+X`。
+DOM 讀取與疊加顯示沒有自動化測試。REQ-003 已在真實頁面注入腳本手動驗證:Items 頁面記下裝備中的 Steyr AUG(74.93 / 54.66),Primary 分頁顯示 `10000 / 11204` 並排除 Laser、Recoil Pad,Armor 分頁只顯示護甲加成;Item Market Primary 頁 60 件、Faction Armoury 47 件、Auction House 10 件都正確顯示戰力值第一行、加成接在下面;沒有加成的主武器只顯示戰力值;近戰與 Dual 武器沒有戰力值;不計入的加成帶 `+X`。
 
 DOM 結構、SPA 重新渲染、CSS 排版屬於瀏覽器行為,沒有寫自動化測試,以下項目已在真實 Torn 頁面手動驗證:
 

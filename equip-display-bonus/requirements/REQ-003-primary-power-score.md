@@ -8,7 +8,7 @@
 
 ### 顯示
 
-1. Item Market、Faction Armoury、Auction House 的主武器，疊加文字第一行顯示戰力值，格式為「{爆發戰力} / {續航戰力}」，例如 `12345 / 23456`；REQ-002 的加成文字接在戰力值下面，例如：
+1. Item Market、Faction Armoury、Auction House、Items 的主武器，疊加文字第一行顯示戰力值，格式為「{爆發戰力} / {續航戰力}」，例如 `12345 / 23456`；REQ-002 的加成文字接在戰力值下面，例如：
    ```
    12345+X / 23456+X
    Specialist 20%

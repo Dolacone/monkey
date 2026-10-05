@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Torn: Equipment Bonus Display
 // @namespace    equip-display-bonus
-// @version      1.1.1
-// @description  Permanently overlay weapon/armor bonus name + percentage, plus a primary weapon power score, on Item Market, Faction Armoury, and Auction House
+// @version      1.1.2
+// @description  Permanently overlay weapon/armor bonus name + percentage, plus a primary weapon power score, on Item Market, Faction Armoury, Auction House, and Items
 // @match        https://www.torn.com/page.php?sid=ItemMarket*
 // @match        https://www.torn.com/factions.php*
 // @match        https://www.torn.com/amarket.php*
@@ -20,6 +20,8 @@
   const OVERLAY_CLASS = 'edb-bonus-overlay';
   const LEGACY_TITLE_RE = /^<b>([^<]+)<\/b>\s*<br\s*\/?>\s*(.*)$/i;
   const PERCENT_RE = /(\d+)%/;
+  // Weapon mods share the bonus tooltip format on the Items page; they are not weapon bonuses.
+  const WEAPON_MOD_RE = /(Sight|Laser|Suppressor|Mags?\b|Mag x2|Trigger|Bipod|Tripod|Grip|Choke|Recoil Pad|Brake|\bLight\b|Illuminator)/i;
 
   // ---- Power score (REQ-003) ----
 
@@ -252,7 +254,7 @@
   }
 
   function extractPercentBonus(name, description) {
-    if (!name || !description) return null;
+    if (!name || !description || WEAPON_MOD_RE.test(name)) return null;
     const match = description.match(PERCENT_RE);
     if (!match) return null;
     return { name, percent: match[1] };
@@ -338,6 +340,7 @@
       'padding:1px 3px',
       'border-radius:2px',
       'white-space:pre',
+      'text-align:left',
       'width:max-content',
     ].join(';');
     overlay.textContent = lines.join('\n');
@@ -389,11 +392,22 @@
     });
   }
 
+  // Items page row: the overlay anchors to `.title-wrap > .title`, which starts with the visible image;
+  // bonus and stat icons sit in the row's `.cont-wrap`.
+  function scanItemsPage(baseline) {
+    document.querySelectorAll('li[data-item]').forEach((row) => {
+      const container = row.querySelector(':scope > .title-wrap > .title');
+      if (!container) return;
+      const bonuses = collectLegacyStyleBonuses(row.querySelector(':scope > .cont-wrap') || row);
+      renderOverlay(container, bonuses, legacyWeapon(row, row.querySelector('.name'), bonuses), baseline);
+    });
+  }
+
   // Items page: remember the equipped primary weapon as the power score baseline.
   function captureBaseline() {
     const row = document.querySelector('#primary-items li[data-equipped="true"]');
     if (!row) return;
-    const weapon = legacyWeapon(row, row.querySelector('.name'), collectLegacyStyleBonuses(row));
+    const weapon = legacyWeapon(row, row.querySelector('.name'), collectLegacyStyleBonuses(row.querySelector(':scope > .cont-wrap') || row));
     if (!weapon.name) return;
     const value = JSON.stringify(weapon);
     if (GM_getValue(BASELINE_KEY, null) !== value) GM_setValue(BASELINE_KEY, value);
@@ -402,6 +416,7 @@
   function scanAll() {
     if (location.pathname === '/item.php') {
       captureBaseline();
+      scanItemsPage(loadBaseline());
       return;
     }
     const baseline = loadBaseline();
