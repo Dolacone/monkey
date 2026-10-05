@@ -10,15 +10,18 @@ function assertWithin(actual, expected, pct) {
     assert.ok(Math.abs(actual / expected - 1) * 100 <= pct, `${actual} not within ${pct}% of ${expected}`);
 }
 
-test('REQ-003 #9: the baseline weapon itself scores 10000 burst', () => {
+test('REQ-003 #9: the baseline weapon itself scores 10000 / 10000', () => {
     const steyr = { name: 'Steyr AUG', damage: 74.93, accuracy: 54.66, bonuses: [bonus('Powerful', 30), bonus('Sure Shot', 3)] };
-    assert.equal(calcPowerScore(steyr, steyr).burst, 10000);
+    const score = calcPowerScore(steyr, steyr);
+    assert.equal(score.burst, 10000);
+    assert.equal(score.sustain, 10000);
 });
 
-test('REQ-003 #9: both numbers scale against the baseline burst, so sustain can exceed 10000', () => {
-    const score = calcPowerScore(SIG_BASE, SIG_BASE);
-    assert.equal(score.burst, 10000);
-    assert.ok(score.sustain > score.burst);
+test('REQ-003 #9: burst and sustain scale separately against the baseline', () => {
+    // Enfield runs much longer on its ammo than SIG 552 but deals about the same in 25 turns.
+    const enfield = calcPowerScore({ name: 'Enfield SA-80', damage: 68, accuracy: 60, bonuses: [] }, SIG_BASE);
+    assert.ok(Math.abs(enfield.burst - 10000) < 1000);
+    assert.ok(enfield.sustain > 14000);
 });
 
 test('REQ-003 #11: missing or unknown baseline falls back to SIG 552 74/55 without bonus', () => {
@@ -32,7 +35,8 @@ test('REQ-003 #12/#15: scores track the fight simulator within 1%', () => {
     // Expected values come from torn-fight-simulator runs of the same fixed scenario (100000 trials).
     assertWithin(calcPowerScore({ name: 'SIG 552', damage: 74, accuracy: 55, bonuses: [bonus('Powerful', 22)] }, SIG_BASE).burst, 12000, 1);
     assertWithin(calcPowerScore({ name: 'Enfield SA-80', damage: 68, accuracy: 60, bonuses: [bonus('Powerful', 22)] }, SIG_BASE).burst, 12532, 1);
-    assertWithin(calcPowerScore({ name: 'Enfield SA-80', damage: 68, accuracy: 60, bonuses: [bonus('Powerful', 22)] }, SIG_BASE).sustain, 24369, 1.5);
+    // Sustain: Enfield Powerful 24369 vs SIG 552 13129, both in burst-scaled simulator units.
+    assertWithin(calcPowerScore({ name: 'Enfield SA-80', damage: 68, accuracy: 60, bonuses: [bonus('Powerful', 22)] }, SIG_BASE).sustain, 18561, 1.5);
 });
 
 test('REQ-003 #16: the same weapon always produces the same numbers', () => {
@@ -76,11 +80,11 @@ test('REQ-003 #17: every computed bonus changes the score', () => {
     });
 });
 
-test('REQ-003 #19: Specialist allows a single clip, so sustain equals burst and drops below the reloading weapon', () => {
+test('REQ-003 #19: Specialist allows a single clip, so sustain drops far more than burst', () => {
     const plain = calcPowerScore({ name: 'Enfield SA-80', damage: 68, accuracy: 60, bonuses: [] }, SIG_BASE);
     const specialist = calcPowerScore({ name: 'Enfield SA-80', damage: 68, accuracy: 60, bonuses: [bonus('Specialist', 28)] }, SIG_BASE);
-    assert.equal(specialist.sustain, specialist.burst);
-    assert.ok(specialist.sustain < plain.sustain);
+    assert.ok(specialist.sustain < plain.sustain / 2);
+    assert.ok(specialist.sustain / plain.sustain < specialist.burst / plain.burst);
 });
 
 test('REQ-003 #19: Conserve stretches the ammo, raising sustain more than burst', () => {

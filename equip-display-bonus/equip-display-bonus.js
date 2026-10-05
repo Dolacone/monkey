@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn: Equipment Bonus Display
 // @namespace    equip-display-bonus
-// @version      1.1.2
+// @version      1.1.3
 // @description  Permanently overlay weapon/armor bonus name + percentage, plus a primary weapon power score, on Item Market, Faction Armoury, Auction House, and Items
 // @match        https://www.torn.com/page.php?sid=ItemMarket*
 // @match        https://www.torn.com/factions.php*
@@ -218,14 +218,14 @@
     };
   }
 
-  // Scales both numbers so the baseline weapon's burst equals 10000.
+  // Scales each number against the same number of the baseline weapon, which shows 10000 / 10000.
   function calcPowerScore(weapon, baseline) {
     const raw = calcPowerRaw(weapon);
     if (!raw) return null;
     const base = (baseline && calcPowerRaw(baseline)) || calcPowerRaw(DEFAULT_BASELINE);
     return {
       burst: Math.round((raw.burst / base.burst) * 10000),
-      sustain: Math.round((raw.sustain / base.burst) * 10000),
+      sustain: Math.round((raw.sustain / base.sustain) * 10000),
       partial: raw.partial,
     };
   }
