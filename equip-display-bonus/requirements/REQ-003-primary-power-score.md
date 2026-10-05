@@ -16,7 +16,7 @@
    ```
 2. 戰力值顯示為整數，不加千分位逗點。
 3. 主武器沒有附加任何加成時，疊加文字只有戰力值這一行。
-4. 主武器帶有不計入戰力值的加成時（見條件 18），兩個戰力值後面都加上 `+X`，代表這把武器還有沒算進去的部分。
+4. 主武器帶有不計入戰力值的加成時（見條件 18），兩個戰力值後面都加上 `+X`，代表這把武器還有戰力值以外的價值。
 5. 副武器、近戰武器、暫時武器、盔甲不顯示戰力值。
 6. Dual Bushmasters、Dual MP5s、Dual P90s、Dual TMPs、Dual Uzis、Egg Propelled Launcher、Neutrilux 2000、Snow Cannon 不顯示戰力值。
 7. 武器名稱不在 Torn wiki 主武器清單裡時，不顯示戰力值。
@@ -47,6 +47,6 @@
 ### 加成
 
 17. 計入戰力值的加成：Achilles、Assassinate、Blindside、Conserve、Cupid、Deadeye、Expose、Penetrate、Powerful、Quicken、Specialist、Sure Shot、Throttle。
-18. 其餘加成（例如 Comeback、Puncture、Focus、Weaken、Disarm、Warlord）不影響數字，並觸發條件 4 的 `+X`。
+18. 其餘加成不影響數字，並觸發條件 4 的 `+X`，包含戰鬥中有效果但沒有計入的加成（例如 Comeback、Puncture、Focus、Weaken、Disarm），也包含跟戰鬥無關的加成（Plunder、Proficience、Revitalize、Stricken、Warlord）。
 19. Specialist 讓整場只有一個彈匣、不能 reload；Conserve 的百分比跟 education、Recoil Pad 的 ammo conservation 相乘疊加剩餘比例。
 20. 武器有兩個加成時，兩個加成的效果一起計入。

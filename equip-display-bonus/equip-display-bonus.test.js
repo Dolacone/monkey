@@ -54,6 +54,13 @@ test('REQ-003 #4/#18: an uncomputed bonus marks both numbers with +X but leaves 
     assert.equal(formatPowerLine(plain), `${plain.burst} / ${plain.sustain}`);
 });
 
+test('REQ-003 #18: bonuses with no combat effect still mark +X as other value', () => {
+    ['Plunder', 'Proficience', 'Revitalize', 'Stricken', 'Warlord'].forEach((name) => {
+        const score = calcPowerScore({ name: 'AK74U', damage: 56, accuracy: 48, bonuses: [bonus(name, 20)] }, SIG_BASE);
+        assert.equal(score.partial, true, name);
+    });
+});
+
 test('REQ-003 #17: every computed bonus changes the score', () => {
     const cases = [
         ['Enfield SA-80', 'Achilles'], ['Enfield SA-80', 'Assassinate'], ['Benelli M4 Super', 'Blindside'],
