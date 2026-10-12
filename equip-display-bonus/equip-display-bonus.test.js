@@ -18,7 +18,7 @@ test('REQ-003 #9: the baseline weapon itself scores 10000 / 10000', () => {
 });
 
 test('REQ-003 #9: burst and sustain scale separately against the baseline', () => {
-    // Enfield runs much longer on its ammo than SIG 552 but deals about the same in 25 turns.
+    // Enfield runs much longer on its ammo than SIG 552 but deals about the same in 10 turns.
     const enfield = calcPowerScore({ name: 'Enfield SA-80', damage: 68, accuracy: 60, bonuses: [] }, SIG_BASE);
     assert.ok(Math.abs(enfield.burst - 10000) < 1000);
     assert.ok(enfield.sustain > 14000);
@@ -33,8 +33,8 @@ test('REQ-003 #11: missing or unknown baseline falls back to SIG 552 74/55 witho
 
 test('REQ-003 #12/#15: scores track the fight simulator within 1%', () => {
     // Expected values come from torn-fight-simulator runs of the same fixed scenario (100000 trials).
-    assertWithin(calcPowerScore({ name: 'SIG 552', damage: 74, accuracy: 55, bonuses: [bonus('Powerful', 22)] }, SIG_BASE).burst, 12000, 1);
-    assertWithin(calcPowerScore({ name: 'Enfield SA-80', damage: 68, accuracy: 60, bonuses: [bonus('Powerful', 22)] }, SIG_BASE).burst, 12532, 1);
+    assertWithin(calcPowerScore({ name: 'SIG 552', damage: 74, accuracy: 55, bonuses: [bonus('Powerful', 22)] }, SIG_BASE).burst, 11981, 1);
+    assertWithin(calcPowerScore({ name: 'Enfield SA-80', damage: 68, accuracy: 60, bonuses: [bonus('Powerful', 22)] }, SIG_BASE).burst, 12265, 1);
     // Sustain: Enfield Powerful 24369 vs SIG 552 13129, both in burst-scaled simulator units.
     assertWithin(calcPowerScore({ name: 'Enfield SA-80', damage: 68, accuracy: 60, bonuses: [bonus('Powerful', 22)] }, SIG_BASE).sustain, 18561, 1.5);
 });

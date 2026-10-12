@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn: Equipment Bonus Display
 // @namespace    equip-display-bonus
-// @version      1.1.4
+// @version      1.1.5
 // @description  Permanently overlay weapon/armor bonus name + percentage, plus a primary weapon power score, on Item Market, Faction Armoury, Auction House, and Items
 // @match        https://www.torn.com/page.php?sid=ItemMarket*
 // @match        https://www.torn.com/factions.php*
@@ -69,7 +69,7 @@
   const PAD_EXCLUDED = ['Nock Gun'];
   const SIGHT_TYPES = ['MG', 'RF', 'SM'];
 
-  const BURST_TURNS = 25;
+  const BURST_TURNS = 10;
   const RELOADS = 2;
   const BASE_CRIT_PCT = 20; // base 12 + merits 5 + education 3
   const LASER_CRIT_PCT = 5;

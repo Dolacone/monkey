@@ -29,7 +29,7 @@ Torn 在三個頁面用不同前端框架渲染裝備清單,腳本因此分成�
 - 雙方 maxDamage、Defense 減傷對每把武器都是同一個倍率,除以基準武器後抵消,所以公式裡沒有屬性絕對值。
 - 命中率:我方 Speed 被動 44%、對手 Dexterity 被動 49%,比值代入 `hitChance()`,再用 `applyAccuracy()` 套上 Accuracy + merits 2 + Sight 1.75(有裝時)。Quicken 加進 Speed 被動;Sure Shot 換算成 `s + (1 - s) x 命中率`。
 - 每次命中的期望傷害:爆擊部位表與非爆擊部位表依 crit 機率(20 + Laser 5 + Expose)加權,每個部位乘上 Sentinel 護甲減免 `1 - 覆蓋率 x 58 x (1 - Penetrate%) / PI 穿透 2 / 100`。Puncture 以觸發機率在「護甲減免」與「無護甲」之間加權,不移除 Sentinel 的 Defense 加成:模擬器把那個加成直接加進 Defense,是暫時的簡化,讓 Puncture 移除它會把簡化放大。torn-fight-simulator 沒有實作 Puncture,這一項沒有模擬結果可以對照。Powerful/Specialist、部位加成、Deadeye(只加在爆擊部位)與 merits 10% 相加進同一個傷害百分比。
-- 出手次數:`attackCounts()` 對「彈匣剩餘彈數 x 剩餘 reload 次數」做確定性的機率轉移,每次出手的消耗量是 Rate of Fire 均勻分布乘上 conservation 剩餘比例後的 stochastic rounding,跟模擬器同一套規則。25 回合內的期望出手次數給爆發戰力,打光為止的期望出手次數給續航戰力。
+- 出手次數:`attackCounts()` 對「彈匣剩餘彈數 x 剩餘 reload 次數」做確定性的機率轉移,每次出手的消耗量是 Rate of Fire 均勻分布乘上 conservation 剩餘比例後的 stochastic rounding,跟模擬器同一套規則。10 回合內的期望出手次數給爆發戰力,換彈回合也佔用回合數,打光為止的期望出手次數給續航戰力。
 - Assassinate 只加在第 1 回合那一次出手;Blindside 只加在第一次命中,乘上「這段期間至少命中一次」的機率。
 - 每把武器的 mod 不讀頁面,固定依 REQ-003 條件 13 的順序推導;Recoil Pad 與 Sight 的可裝類型、Nock Gun 例外取自 Torn wiki 的 Weapon Mod 頁面。
 
@@ -43,7 +43,7 @@ Torn 在三個頁面用不同前端框架渲染裝備清單,腳本因此分成�
 
 `equip-display-bonus.test.js` 涵蓋 REQ-003 的計算規則(條件 4、5-7、9、11、12-13、15-20),內容見 `equip-display-bonus.test.md`。
 
-公式另外跟 torn-fight-simulator 的蒙地卡羅結果逐一對照過 10 組武器與加成(Rifle、SMG + Sight + Quicken、Machine Gun、Shotgun + Blindside、Nock Gun 只裝 Laser、Specialist、Conserve、Assassinate、部位加成,各 40000 場),爆發與續航戰力最大誤差 0.43%,在模擬器本身的抽樣誤差範圍內。這個對照依賴另一個 repo,沒有放進自動化測試;測試檔只保留三個模擬器數值當回歸基準。
+公式另外跟 torn-fight-simulator 的蒙地卡羅結果逐一對照過 10 組武器與加成(Rifle、SMG + Sight + Quicken、Machine Gun、Shotgun + Blindside、Nock Gun 只裝 Laser、Specialist、Conserve、Assassinate、部位加成,各 40000 場),續航戰力最大誤差 0.43%,在模擬器本身的抽樣誤差範圍內。10 回合的爆發戰力對照過 SIG 552 與 Enfield SA-80 加 Powerful 22% 兩組(各 100000 場),最大誤差 0.16%。這個對照依賴另一個 repo,沒有放進自動化測試;測試檔只保留三個模擬器數值當回歸基準。
 
 DOM 讀取與疊加顯示沒有自動化測試。REQ-003 已在真實頁面注入腳本手動驗證:Items 頁面記下裝備中的 Steyr AUG(74.93 / 54.66),Primary 分頁顯示基準武器的戰力值 並排除 Laser、Recoil Pad,Armor 分頁只顯示護甲加成;Item Market Primary 頁 60 件、Faction Armoury 47 件、Auction House 10 件都正確顯示戰力值第一行、加成接在下面;沒有加成的主武器只顯示戰力值;近戰與 Dual 武器沒有戰力值;不計入的加成帶 `+X`。
 
