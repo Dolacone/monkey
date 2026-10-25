@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Torn: Fight Better
-// @version      1.7.0
+// @version      1.7.1
 // @description  Faster actions
 // @author       Dolacone
 // @match        https://www.torn.com/*
@@ -396,6 +396,7 @@ function initAttackLinkNewTab() {
         if (!href.startsWith('/page.php?sid=attack')) return;
 
         event.preventDefault();
+        event.stopImmediatePropagation();
         GM_openInTab(link.href, { active: true, insert: true });
     }, true);
 }
