@@ -35,7 +35,7 @@ z 鍵由 `useArmoryBloodBag()` 處理：`findArmoryBloodBagRow()` 在物品清�
 
 ### 攻擊連結開新分頁（REQ-005）
 
-`initAttackLinkNewTab()` 不限頁面，無條件執行，掛一個 `click` 事件監聽在 `document`（捕獲階段），涵蓋整個頁面、包含日後動態渲染出來的連結。跟後面的頁面分支（item.php / 攻擊頁）互相獨立，不共用任何狀態。
+`initAttackLinkNewTab()` 不限頁面，無條件執行，掛一個 `click` 事件監聽在 `document`（捕獲階段），涵蓋整個頁面、包含日後動態渲染出來的連結。命中攻擊連結時呼叫 `stopImmediatePropagation()`，讓 Torn 自己的 click handler 不會在目前分頁導頁。跟後面的頁面分支（item.php / 攻擊頁）互相獨立，不共用任何狀態。
 
 ## Key selectors and stability notes
 
