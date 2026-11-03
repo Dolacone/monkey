@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PI Property Manager
 // @namespace    pi.property.manager
-// @version      1.3.0
+// @version      1.3.1
 // @description  Overview table for your Private Island properties, with auto-filled extension terms
 // @author       Dola
 // @license      MIT
@@ -64,7 +64,7 @@ function getParam(name) {
 }
 
 function getPlayerId() {
-    const selectors = ['#sidebarroot a[href*="profiles.php?XID="]', '.settings-menu a[href*="profiles.php?XID="]'];
+    const selectors = ['.settings-menu a[href*="profiles.php?XID="]', '#sidebarroot a[href*="profiles.php?XID="]'];
     for (const selector of selectors) {
         const href = document.querySelector(selector)?.getAttribute('href');
         const playerId = href?.match(/XID=(\d+)/)?.[1];

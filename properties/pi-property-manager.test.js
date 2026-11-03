@@ -47,6 +47,16 @@ test('REQ-002 #7: mobile settings identity keeps the property manager eligible a
     assert.equal(context.getPlayerId(), '2720731');
 });
 
+test('REQ-002 #2: a friend link in the mobile sidebar cannot replace the logged-in identity', () => {
+    const { context } = loadScript();
+    context.document.querySelector = (selector) => {
+        if (selector.startsWith('.settings-menu')) return profileLink(2720731);
+        if (selector.startsWith('#sidebarroot')) return profileLink(4072475);
+        return null;
+    };
+    assert.equal(context.getPlayerId(), '2720731');
+});
+
 test('REQ-002 #7: unrelated profile links cannot become the logged-in identity', () => {
     const { context } = loadScript();
     context.document.querySelector = () => null;

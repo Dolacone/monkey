@@ -15,7 +15,7 @@
 ## DOM 掛勾與選擇器
 
 - 表格插入點:`#properties-page-wrap .content-title.m-bottom10`(插在其後)。
-- 玩家 ID 來源:桌面寬度使用 `#sidebarroot a[href*="profiles.php?XID="]`,手機寬度使用 `.settings-menu a[href*="profiles.php?XID="]`,從 href 取出 XID。兩個選擇器都限定在登入玩家區域,避免抓到房產列表或論壇動態列的其他玩家。
+- 玩家 ID 來源:先查 header 頭像選單 `.settings-menu a[href*="profiles.php?XID="]`,找不到再查 `#sidebarroot a[href*="profiles.php?XID="]`,從 href 取出 XID。手機寬度的 `#sidebarroot` 會渲染好友清單 fly-out(`#nav-friends_list`),第一個 profile 連結是好友,不是登入玩家。
 - 續約表單輸入框:`input.offerExtension.input-money[data-name="offercost"]`(租金)、`input.offerExtension.input-money[data-name="days"]`(天數)。同一個 `data-name` 底下同時有 `type="text"`(顯示用)與 `type="hidden"`(送出用)兩個 input,只能寫 `type="text"` 那個。
 - 送出按鈕:續約表單為 `.offerExtension-form input[type="submit"]`,預設是 `disabled`,填完值後需手動移除。
 - 總覽表格是純自製的 `<table>`,搭配 `GM_addStyle` 寫死的深色主題 CSS,不依賴 Torn 任何頁面專屬 class。表格容器在窄螢幕允許水平捲動,避免欄位或操作連結被裁切。
