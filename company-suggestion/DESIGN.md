@@ -10,13 +10,17 @@
 
 頁面上的 effectiveness 每天只計算一次，換職位後 `data-multipliers` 不會變。腳本因此不採用頁面上的 working_stats 與 management，改用即時 stats 重算；其餘 6 項跟職位無關，直接沿用。
 
-- working stats 公式來自 Torn wiki，1.2 倍（BUS2110）與每項各自 floor 是用 API 員工資料比對得出的，12 人中 11 人吻合，剩下 1 人是 stats 在當天計算後才增加。
-- management 公式未知。`floor(0.84 * (100 - ws) ^ 0.795)` 是吻合全部觀察點的候選公式之一，ws 40-70 之間缺少資料點，預測可能偏差 1-2 分。
+- working stats 公式來自 Torn wiki，1.2 倍（BUS2110）與每項各自 floor 是用 API 員工資料比對得出的。
+- management 公式來自 Night Club tracker 的 `management`，2026-10-24 至 11-05 的 effectiveness 明細全部吻合。所有明細的 Manager 都是同一人，換 Manager 後常數 115 是否不變沒有資料驗證。
 - 職位需求寫死 Nightclub 的數值，不呼叫 API，腳本不需要 API key。
 
-## REQ-002 — 最佳配置
+## REQ-002 — Trainer
 
-4 個單人職位窮舉所有排列（12 人時 11880 種），每種排列的 Bartender 總和用「全員 Bartender 總和 - 被選中者的 Bartender 值」算出。依單人職位總和、Bartender 總和、調動人數依序比較。
+Night Club tracker 只在 10 星安全差距達 99% 時才讓最弱者當 Trainer。這個判斷需要公司週收入與其他公司的排名，REQ-001 條件 4 禁止腳本發出 request，因此腳本一律建議最弱者當 Trainer；週末 tracker 把最弱者放回 Bartender 時，頁面會標出相反的建議。
+
+## REQ-002 — 職位權重
+
+4 組權重是 Night Club tracker 2026-11-05 的客人模型係數（`position_weights`），腳本寫死，不隨每日重新擬合更新。對調的增益先算每位員工的差，再相加，和 tracker 的 `assignment_gains` 相同，權重相同的模型才會得到剛好 0。
 
 ## REQ-002 — 紫色背景
 
@@ -24,5 +28,5 @@
 
 ## 測試覆蓋
 
-- 自動測試：REQ-001 條件 2，REQ-002 條件 1-7。見 `company-suggestion.test.md`。
-- 手動檢查：REQ-001 條件 1、3、4、5，REQ-002 條件 8-11，在實際員工頁面注入腳本確認。
+- 自動測試：REQ-001 條件 2，REQ-002 條件 1-16。見 `company-suggestion.test.md`。
+- 手動檢查：REQ-001 條件 1、3、4、5，REQ-002 條件 17-20，在實際員工頁面注入腳本確認。
