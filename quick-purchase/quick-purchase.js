@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Torn: Quick Purchase
 // @namespace    quick-purchase
-// @version      1.0.0
-// @description  Alert when the target abroad item restocks, and buy it by clicking the travel message bar three times
+// @version      1.0.1
+// @description  Alert when the target abroad item restocks, and buy it by clicking the travel message bar (or pressing q / space) three times
 // @author       Dolacone
 // @match        https://www.torn.com/page.php?sid=travel*
 // @downloadURL  https://raw.githubusercontent.com/Dolacone/monkey/refs/heads/master/quick-purchase/quick-purchase.js
@@ -33,8 +33,26 @@
     return step === 0 ? 'max' : 'buy';
   }
 
+  // ---- Keyboard (REQ-002 #9-12) ----
+
+  const TEXT_INPUT_EXCLUDED = ['button', 'submit', 'reset', 'checkbox', 'radio', 'image', 'file', 'range', 'color'];
+
+  function isEditable(target) {
+    if (!target) return false;
+    if (target.isContentEditable) return true;
+    const tag = String(target.tagName || '').toUpperCase();
+    if (tag === 'TEXTAREA' || tag === 'SELECT') return true;
+    return tag === 'INPUT' && !TEXT_INPUT_EXCLUDED.includes(String(target.type || 'text').toLowerCase());
+  }
+
+  function isTriggerKey(event) {
+    if (event.key !== 'q' && event.key !== 'Q' && event.key !== ' ') return false;
+    if (event.repeat || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return false;
+    return !isEditable(event.target);
+  }
+
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { parseStock, isRestock, nextAction };
+    module.exports = { parseStock, isRestock, nextAction, isTriggerKey };
     return;
   }
 
@@ -136,8 +154,7 @@
     poll();
   }
 
-  function onBarClick(event) {
-    if (!event.target.closest(BAR)) return;
+  function runStep() {
     const id = resolveItemId();
     if (!id) return show('not sold here');
 
@@ -172,6 +189,31 @@
     }, 150);
   }
 
+  function isShopShown() {
+    return !!document.querySelector(BAR) && !!document.querySelector(ROWS);
+  }
+
+  function onBarClick(event) {
+    if (event.target.closest(BAR) && isShopShown()) runStep();
+  }
+
+  let suppressSpaceUp = false;
+
+  function onKeyDown(event) {
+    if (!isShopShown() || !isTriggerKey(event)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (event.key === ' ') suppressSpaceUp = true;
+    runStep();
+  }
+
+  function onKeyUp(event) {
+    if (event.key !== ' ' || !suppressSpaceUp) return;
+    suppressSpaceUp = false;
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
   function onMutation() {
     if (!document.querySelector(BAR)) return;
     if (alerted) document.querySelector(BAR).classList.add('qp-green');
@@ -182,6 +224,8 @@
   }
 
   document.addEventListener('click', onBarClick, true);
+  document.addEventListener('keydown', onKeyDown, true);
+  document.addEventListener('keyup', onKeyUp, true);
   new MutationObserver(onMutation).observe(document.body, { childList: true, characterData: true, subtree: true });
   onMutation();
 })();

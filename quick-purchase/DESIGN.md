@@ -16,6 +16,10 @@
 
 訊息列由 React 管理。腳本不改它的文字節點，只加 class 用 `font-size:0` 和 `display:none` 隱藏原文字，再附加自己的 `span`，React 之後更新金額時不會衝突。
 
+## REQ-002 — 空白鍵與已取得焦點的按鈕
+
+確認框的 Yes 帶 `autoFocus`，瀏覽器在空白鍵 `keyup` 時會點擊取得焦點的按鈕。腳本在捕獲階段對觸發的 `keydown` 與對應的 `keyup` 都 `preventDefault()` 加 `stopPropagation()`，一次按鍵只執行腳本的那一步，也不捲動頁面。
+
 ## REQ-003 — 補貨偵測
 
 庫存變動有三個來源：WebSocket `travelShop` / `itemsUpdated` 推送、視窗重新取得焦點或重新連線時重抓 `step=shop`、購買後重抓。三者最後都會改寫 stock 那一格，所以監看 DOM 而不是只訂閱 WebSocket。觀察到的推送只有庫存減少；補貨是否也即時推送尚未觀察到，沒推送時要等重抓才會觸發。
@@ -26,6 +30,6 @@
 
 ## 測試覆蓋
 
-- 自動測試：REQ-002 條件 1、2，REQ-003 條件 1、2、3。見 `quick-purchase.test.md`。
+- 自動測試：REQ-002 條件 1、2、9-12，REQ-003 條件 1、2、3。見 `quick-purchase.test.md`。
 - 手動檢查：REQ-002 條件 1、2、5、7 由使用者在開曼群島以 Bearer Bond 實測三段點擊（注入版本）；REQ-003 條件 4 的訊息列變綠以 Stingray Plushie 庫存變動實測（注入版本）。
-- 尚未檢查：安裝成 Tampermonkey 腳本後的整體流程、目標 Xanax 的實際補貨觸發、整頁變紅與提示音、REQ-001 條件 4、REQ-002 條件 4。
+- 尚未檢查：安裝成 Tampermonkey 腳本後的整體流程、目標 Xanax 的實際補貨觸發、整頁變紅與提示音、REQ-001 條件 4、REQ-002 條件 4、REQ-002 條件 13。

@@ -9,6 +9,7 @@
 - `document-idle` 時執行一次。
 - `MutationObserver` 監看 `document.body` 的 `childList`、`subtree`、`characterData`，每次變動重新讀目標商品的 stock，並在提醒中重新把綠色 class 加回訊息列。
 - `document` 的 `click`（捕獲階段），點擊落在訊息列內時執行下一步購買動作。
+- `document` 的 `keydown`（捕獲階段），頁面有訊息列與商店列表且按下 `q` 或空白鍵時執行下一步購買動作；同一次空白鍵的 `keyup` 也在捕獲階段攔下。
 
 ## DOM 掛鉤
 
