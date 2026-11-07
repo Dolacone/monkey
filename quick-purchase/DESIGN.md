@@ -22,6 +22,22 @@ GET /page.php?sid=travelData&step=buy&itemID=<ID>&amount=<n>&rfcv=<token>
   - 商品名稱與表單都消失。
   - 商品 ID 改從確認框問句比對。
 
+## REQ-002 — 手機排版
+
+travel bundle 的 Buy 按鈕元件依排版渲染：
+
+- 桌面版：`torn-btn` 文字 Buy。
+- 手機版：`buyIconButton___` 購物車圖示。
+- 兩者都是 `type=submit`，`form=item-<ID>-form`。
+  - 表單的 `onSubmit` 切換 buy panel 開關。
+
+buy panel 的內容依排版不同：
+
+- 桌面版：直接是確認框。
+- 手機版：先是數量面板 `amountPanel___`，按面板的 Buy 才換成確認框。
+  - 數量面板的輸入框帶 `autoFocus`。
+  - 腳本按下購物車 150ms 後，焦點在面板內就 `blur()`。
+
 ## REQ-002 — 不捲動
 
 - 確認框的 Yes 按鈕帶 `autoFocus`。
@@ -73,7 +89,7 @@ GET /page.php?sid=travelData&step=buy&itemID=<ID>&amount=<n>&rfcv=<token>
 
 ## 測試覆蓋
 
-- 自動測試：REQ-002 條件 1、2、9-12，REQ-003 條件 1、2、3。
+- 自動測試：REQ-002 條件 1、2、9-12、15，REQ-003 條件 1、2、3。
   - 見 `quick-purchase.test.md`。
 - 手動檢查，皆以注入版本實測：
   - REQ-002 條件 1、2、5、7：使用者在開曼群島以 Bearer Bond 實測三段點擊。
@@ -83,4 +99,5 @@ GET /page.php?sid=travelData&step=buy&itemID=<ID>&amount=<n>&rfcv=<token>
   - 目標 Xanax 的實際補貨觸發。
   - 整頁變紅與提示音。
   - REQ-001 條件 4。
-  - REQ-002 條件 4、13。
+  - REQ-002 條件 4、13、14、16。
+  - 手機排版下，點隱藏表單的最大值箭頭能否填入數量。

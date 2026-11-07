@@ -36,6 +36,10 @@
 | 最大值箭頭 | `form#item-<ID>-form .input-money-symbol` |
 | 數量 | `form#item-<ID>-form input[placeholder='Qty']` |
 | Buy 按鈕 | `button[type='submit'][form='item-<ID>-form']` |
+| 購物車（手機） | 同 Buy 按鈕，class 為 `buyIconButton___` |
+| 數量面板（手機） | `#item-<ID>-buyPanel [class*='amountPanel___']` |
+| 數量面板問句 | `[class*='amountPanel___'] [class*='question___']` |
+| 數量面板 Buy | `[class*='amountPanel___'] button[type='submit']` |
 | 確認框 | `#item-<ID>-buyPanel [class*='confirmPanel___']` |
 | 確認框問句 | `#item-<ID>-buyPanel [class*='confirmQuestion___']` |
 | Yes 按鈕 | `#item-<ID>-buyPanel button[class*='yes___']` |
@@ -55,6 +59,10 @@
 - 確認框打開時，該商品的 `li` 只剩 `#item-<ID>-buyPanel`。
   - 名稱、stock、表單都不在 DOM 中。
   - 商品 ID 改由確認框問句 `<數量>x <名稱>` 比對取得。
+- 手機排版時，`form#item-<ID>-form` 仍在 DOM 中，但 `display: none`。
+  - 列表與數量面板共用同一個數量 state。
+  - 腳本仍點這個隱藏表單的最大值箭頭。
+- 手機排版時，確認框打開後商品列仍保留。
 - 腳本不使用 TornTools 加上的 `data-tt-content-type` 屬性。
   - 沒裝 TornTools 也能運作。
 - class 名稱帶雜湊後綴。

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn: Quick Purchase
 // @namespace    quick-purchase
-// @version      1.0.2
+// @version      1.0.3
 // @description  Alert when the target abroad item restocks, and buy it by clicking the travel message bar (or pressing q / space) three times
 // @author       Dolacone
 // @match        https://www.torn.com/page.php?sid=travel*
@@ -17,7 +17,7 @@
   const TARGET = 'Xanax';
   const SOUND_URL = 'https://cdn.pixabay.com/download/audio/2024/05/23/audio_336d55dfa8.mp3?filename=servant-bell-ring-2-211683.mp3';
 
-  // ---- Rules (REQ-002 #1-3, REQ-003 #1-3) ----
+  // ---- Rules (REQ-002 #1-3, #15, REQ-003 #1-3) ----
 
   function parseStock(text) {
     const digits = String(text).replace(/[^0-9]/g, '');
@@ -28,8 +28,9 @@
     return (prev === undefined || prev === 0) && now !== null && now > 0;
   }
 
-  function nextAction(step, confirmOpen) {
-    if (confirmOpen) return 'confirm';
+  function nextAction(step, panel) {
+    if (panel === 'confirm') return 'confirm';
+    if (panel === 'amount') return 'panelBuy';
     return step === 0 ? 'max' : 'buy';
   }
 
@@ -158,8 +159,10 @@
     const id = resolveItemId();
     if (!id) return show('not sold here');
 
-    const yes = document.querySelector(`#item-${id}-buyPanel [class*='confirmPanel___'] button[class*='yes___']`);
-    const action = nextAction(step, !!yes);
+    const panel = document.getElementById(`item-${id}-buyPanel`);
+    const yes = panel?.querySelector("[class*='confirmPanel___'] button[class*='yes___']");
+    const panelBuy = panel?.querySelector("[class*='amountPanel___'] button[type='submit']");
+    const action = nextAction(step, yes ? 'confirm' : panelBuy ? 'amount' : null);
 
     if (action === 'confirm') {
       keepScroll(() => yes.click());
@@ -169,24 +172,39 @@
       return waitForResult(id);
     }
 
+    if (action === 'panelBuy') {
+      if (panelBuy.disabled) return show('BUY button disabled | next click: BUY');
+      keepScroll(() => panelBuy.click());
+      step = 0;
+      return setTimeout(() => showAfterBuy(id), 150);
+    }
+
     const form = document.getElementById(`item-${id}-form`);
     if (!form) return show('row busy | click again later');
+    const buy = document.querySelector(`button[type='submit'][form='item-${id}-form']`);
 
     if (action === 'max') {
       keepScroll(() => form.querySelector('.input-money-symbol').click());
       step = 1;
-      setTimeout(() => show(`MAX -> qty ${form.querySelector("input[placeholder='Qty']").value} | next click: BUY`), 50);
+      const next = buy?.matches("[class*='buyIconButton___']") ? 'CART' : 'BUY';
+      setTimeout(() => show(`MAX -> qty ${form.querySelector("input[placeholder='Qty']").value} | next click: ${next}`), 50);
       return;
     }
 
     step = 0;
-    const buy = document.querySelector(`button[type='submit'][form='item-${id}-form']`);
     if (!buy || buy.disabled) return show('BUY button disabled | next click: MAX');
     keepScroll(() => buy.click());
-    setTimeout(() => {
-      const question = document.querySelector(`#item-${id}-buyPanel [class*='confirmQuestion___']`);
-      show(question ? `BUY -> ${question.textContent.trim()} | next click: CONFIRM` : 'BUY clicked, no confirm panel | next click: MAX');
-    }, 150);
+    setTimeout(() => showAfterBuy(id), 150);
+  }
+
+  function showAfterBuy(id) {
+    const panel = document.getElementById(`item-${id}-buyPanel`);
+    const confirm = panel?.querySelector("[class*='confirmQuestion___']");
+    if (confirm) return show(`BUY -> ${confirm.textContent.trim()} | next click: CONFIRM`);
+    const amount = panel?.querySelector("[class*='amountPanel___']");
+    if (!amount) return show('BUY clicked, no panel | next click: MAX');
+    if (amount.contains(document.activeElement)) document.activeElement.blur();
+    show(`CART -> ${amount.querySelector("[class*='question___']").textContent.trim()} | next click: BUY`);
   }
 
   function isShopShown() {

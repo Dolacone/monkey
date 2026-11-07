@@ -34,14 +34,20 @@ test('isRestock fires on a non-zero first reading only', () => {
 
 // REQ-002 #1: an open confirm panel always wins, whatever the step counter says.
 test('nextAction confirms whenever the confirm panel is open', () => {
-  assert.equal(nextAction(0, true), 'confirm');
-  assert.equal(nextAction(1, true), 'confirm');
+  assert.equal(nextAction(0, 'confirm'), 'confirm');
+  assert.equal(nextAction(1, 'confirm'), 'confirm');
 });
 
-// REQ-002 #2: without a confirm panel, the first click fills max and the second clicks Buy.
-test('nextAction alternates max then buy without a confirm panel', () => {
-  assert.equal(nextAction(0, false), 'max');
-  assert.equal(nextAction(1, false), 'buy');
+// REQ-002 #15: the mobile amount panel's Buy comes next whenever that panel is open.
+test('nextAction clicks the panel Buy whenever the mobile amount panel is open', () => {
+  assert.equal(nextAction(0, 'amount'), 'panelBuy');
+  assert.equal(nextAction(1, 'amount'), 'panelBuy');
+});
+
+// REQ-002 #2: with no panel open, the first click fills max and the second clicks Buy (or the mobile cart).
+test('nextAction alternates max then buy with no panel open', () => {
+  assert.equal(nextAction(0, null), 'max');
+  assert.equal(nextAction(1, null), 'buy');
 });
 
 const BODY = { tagName: 'BODY' };
