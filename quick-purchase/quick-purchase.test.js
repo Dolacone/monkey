@@ -25,9 +25,11 @@ test('isRestock ignores drops and positive-to-positive changes', () => {
   assert.equal(isRestock(0, null), false);
 });
 
-// REQ-003 #3: the first reading after load has no previous value and never fires.
-test('isRestock does not fire without a previous reading', () => {
-  assert.equal(isRestock(undefined, 38), false);
+// REQ-003 #3: the first reading fires when the target is already in stock, and stays quiet at 0.
+test('isRestock fires on a non-zero first reading only', () => {
+  assert.equal(isRestock(undefined, 38), true);
+  assert.equal(isRestock(undefined, 0), false);
+  assert.equal(isRestock(undefined, null), false);
 });
 
 // REQ-002 #1: an open confirm panel always wins, whatever the step counter says.

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn: Quick Purchase
 // @namespace    quick-purchase
-// @version      1.0.1
+// @version      1.0.2
 // @description  Alert when the target abroad item restocks, and buy it by clicking the travel message bar (or pressing q / space) three times
 // @author       Dolacone
 // @match        https://www.torn.com/page.php?sid=travel*
@@ -25,7 +25,7 @@
   }
 
   function isRestock(prev, now) {
-    return prev === 0 && now !== null && now > 0;
+    return (prev === undefined || prev === 0) && now !== null && now > 0;
   }
 
   function nextAction(step, confirmOpen) {
@@ -129,8 +129,8 @@
   }
 
   function startAlert() {
+    if (!alerted) bodyBackground = document.body.style.backgroundColor;
     alerted = true;
-    bodyBackground = document.body.style.backgroundColor;
     document.body.style.backgroundColor = 'red';
     document.querySelector(BAR)?.classList.add('qp-green');
     sound.play().catch((err) => console.log('[QuickPurchase] sound blocked', err));
@@ -219,7 +219,7 @@
     if (alerted) document.querySelector(BAR).classList.add('qp-green');
     const now = readTargetStock();
     if (now === null) return;
-    if (lastStock !== undefined && isRestock(lastStock, now)) startAlert();
+    if (isRestock(lastStock, now)) startAlert();
     lastStock = now;
   }
 
