@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn: Equipment Bonus Display
 // @namespace    equip-display-bonus
-// @version      1.1.5
+// @version      1.1.6
 // @description  Permanently overlay weapon/armor bonus name + percentage, plus a primary weapon power score, on Item Market, Faction Armoury, Auction House, and Items
 // @match        https://www.torn.com/page.php?sid=ItemMarket*
 // @match        https://www.torn.com/factions.php*
@@ -69,7 +69,6 @@
   const PAD_EXCLUDED = ['Nock Gun'];
   const SIGHT_TYPES = ['MG', 'RF', 'SM'];
 
-  const BURST_TURNS = 10;
   const RELOADS = 2;
   const BASE_CRIT_PCT = 20; // base 12 + merits 5 + education 3
   const LASER_CRIT_PCT = 5;
@@ -124,7 +123,7 @@
     return base + ((accuracy - 50) / 50) * base;
   }
 
-  // Expected attacks within the burst window and until every clip is spent.
+  // Expected attacks until every clip is spent.
   // Each attack fires a uniform Rate of Fire roll, scaled by the remaining ammo ratio with stochastic rounding.
   function attackCounts(clip, rofMin, rofMax, remainingRatio, reloads) {
     const consumption = new Map();
@@ -137,8 +136,7 @@
       if (frac > 0) consumption.set(low + 1, (consumption.get(low + 1) || 0) + p * frac);
     }
     let states = new Map([[`${clip}:${reloads}`, 1]]);
-    let burst = 0;
-    let sustain = 0;
+    let attacks = 0;
     for (let turn = 1; states.size > 0 && turn <= 2000; turn++) {
       const next = new Map();
       const add = (key, prob) => next.set(key, (next.get(key) || 0) + prob);
@@ -148,13 +146,12 @@
           if (reloadsLeft > 0) add(`${clip}:${reloadsLeft - 1}`, prob);
           return;
         }
-        sustain += prob;
-        if (turn <= BURST_TURNS) burst += prob;
+        attacks += prob;
         consumption.forEach((cp, used) => add(`${Math.max(0, ammo - used)}:${reloadsLeft}`, prob * cp));
       });
       states = next;
     }
-    return { burst, sustain };
+    return attacks;
   }
 
   // Raw expected damage in the fixed scenario, before scaling against the baseline.
@@ -211,22 +208,22 @@
 
     const perAttack = pHit * weapon.damage * perHit(0);
     const firstTurnExtra = fx.firstTurn > 0 ? pHit * weapon.damage * (perHit(fx.firstTurn) - perHit(0)) : 0;
-    const firstHitExtra = (n) => (fx.firstHit > 0 ? (1 - Math.pow(1 - pHit, n)) * weapon.damage *
-      (perHit(fx.firstHit) - perHit(0)) : 0);
+    const firstHitExtra = fx.firstHit > 0 ? (1 - Math.pow(1 - pHit, attacks)) * weapon.damage *
+      (perHit(fx.firstHit) - perHit(0)) : 0;
     return {
-      burst: perAttack * attacks.burst + firstTurnExtra + firstHitExtra(attacks.burst),
-      sustain: perAttack * attacks.sustain + firstTurnExtra + firstHitExtra(attacks.sustain),
+      single: perAttack,
+      sustain: perAttack * attacks + firstTurnExtra + firstHitExtra,
       partial,
     };
   }
 
-  // Scales each number against the same number of the baseline weapon, which shows 10000 / 10000.
+  // Scales each number against the same number of the baseline weapon, which shows 10000/10000.
   function calcPowerScore(weapon, baseline) {
     const raw = calcPowerRaw(weapon);
     if (!raw) return null;
     const base = (baseline && calcPowerRaw(baseline)) || calcPowerRaw(DEFAULT_BASELINE);
     return {
-      burst: Math.round((raw.burst / base.burst) * 10000),
+      single: Math.round((raw.single / base.single) * 10000),
       sustain: Math.round((raw.sustain / base.sustain) * 10000),
       partial: raw.partial,
     };
@@ -234,7 +231,7 @@
 
   function formatPowerLine(score) {
     const mark = score.partial ? '+X' : '';
-    return `${score.burst}${mark} / ${score.sustain}${mark}`;
+    return `${score.single}${mark}/${score.sustain}${mark}`;
   }
 
   if (typeof module !== 'undefined' && module.exports) {

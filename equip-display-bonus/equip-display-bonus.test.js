@@ -10,17 +10,17 @@ function assertWithin(actual, expected, pct) {
     assert.ok(Math.abs(actual / expected - 1) * 100 <= pct, `${actual} not within ${pct}% of ${expected}`);
 }
 
-test('REQ-003 #9: the baseline weapon itself scores 10000 / 10000', () => {
+test('REQ-003 #9: the baseline weapon itself scores 10000/10000', () => {
     const steyr = { name: 'Steyr AUG', damage: 74.93, accuracy: 54.66, bonuses: [bonus('Powerful', 30), bonus('Sure Shot', 3)] };
     const score = calcPowerScore(steyr, steyr);
-    assert.equal(score.burst, 10000);
+    assert.equal(score.single, 10000);
     assert.equal(score.sustain, 10000);
 });
 
-test('REQ-003 #9: burst and sustain scale separately against the baseline', () => {
-    // Enfield runs much longer on its ammo than SIG 552 but deals about the same in 10 turns.
+test('REQ-003 #9: single hit and sustain scale separately against the baseline', () => {
+    // Enfield runs much longer on its ammo than SIG 552 but deals about the same per attack.
     const enfield = calcPowerScore({ name: 'Enfield SA-80', damage: 68, accuracy: 60, bonuses: [] }, SIG_BASE);
-    assert.ok(Math.abs(enfield.burst - 10000) < 1000);
+    assert.ok(Math.abs(enfield.single - 10000) < 1000);
     assert.ok(enfield.sustain > 14000);
 });
 
@@ -31,10 +31,8 @@ test('REQ-003 #11: missing or unknown baseline falls back to SIG 552 74/55 witho
     assert.deepEqual(calcPowerScore(enfield, { name: 'Dual Uzis', damage: 70, accuracy: 50, bonuses: [] }), expected);
 });
 
-test('REQ-003 #12/#15: scores track the fight simulator within 1%', () => {
+test('REQ-003 #12/#15: sustain tracks the fight simulator within 1.5%', () => {
     // Expected values come from torn-fight-simulator runs of the same fixed scenario (100000 trials).
-    assertWithin(calcPowerScore({ name: 'SIG 552', damage: 74, accuracy: 55, bonuses: [bonus('Powerful', 22)] }, SIG_BASE).burst, 11981, 1);
-    assertWithin(calcPowerScore({ name: 'Enfield SA-80', damage: 68, accuracy: 60, bonuses: [bonus('Powerful', 22)] }, SIG_BASE).burst, 12265, 1);
     // Sustain: Enfield Powerful 24369 vs SIG 552 13129, both in burst-scaled simulator units.
     assertWithin(calcPowerScore({ name: 'Enfield SA-80', damage: 68, accuracy: 60, bonuses: [bonus('Powerful', 22)] }, SIG_BASE).sustain, 18561, 1.5);
 });
@@ -52,10 +50,10 @@ test('REQ-003 #5/#6/#7: non-primary, excluded and unknown weapons get no score',
 test('REQ-003 #4/#18: an uncomputed bonus marks both numbers with +X but leaves them unchanged', () => {
     const plain = calcPowerScore({ name: 'MP5 Navy', damage: 56.38, accuracy: 57.83, bonuses: [] }, SIG_BASE);
     const comeback = calcPowerScore({ name: 'MP5 Navy', damage: 56.38, accuracy: 57.83, bonuses: [bonus('Comeback', 70)] }, SIG_BASE);
-    assert.equal(comeback.burst, plain.burst);
+    assert.equal(comeback.single, plain.single);
     assert.equal(comeback.sustain, plain.sustain);
-    assert.equal(formatPowerLine(comeback), `${plain.burst}+X / ${plain.sustain}+X`);
-    assert.equal(formatPowerLine(plain), `${plain.burst} / ${plain.sustain}`);
+    assert.equal(formatPowerLine(comeback), `${plain.single}+X/${plain.sustain}+X`);
+    assert.equal(formatPowerLine(plain), `${plain.single}/${plain.sustain}`);
 });
 
 test('REQ-003 #18: bonuses with no combat effect still mark +X as other value', () => {
@@ -80,17 +78,18 @@ test('REQ-003 #17: every computed bonus changes the score', () => {
     });
 });
 
-test('REQ-003 #19: Specialist allows a single clip, so sustain drops far more than burst', () => {
+test('REQ-003 #19: Specialist allows a single clip, so sustain drops while single hit rises', () => {
     const plain = calcPowerScore({ name: 'Enfield SA-80', damage: 68, accuracy: 60, bonuses: [] }, SIG_BASE);
     const specialist = calcPowerScore({ name: 'Enfield SA-80', damage: 68, accuracy: 60, bonuses: [bonus('Specialist', 28)] }, SIG_BASE);
     assert.ok(specialist.sustain < plain.sustain / 2);
-    assert.ok(specialist.sustain / plain.sustain < specialist.burst / plain.burst);
+    assert.ok(specialist.single > plain.single);
 });
 
-test('REQ-003 #19: Conserve stretches the ammo, raising sustain more than burst', () => {
+test('REQ-003 #19: Conserve stretches the ammo, raising sustain but not single hit', () => {
     const plain = calcPowerScore({ name: 'SIG 552', damage: 74, accuracy: 55, bonuses: [] }, SIG_BASE);
     const conserve = calcPowerScore({ name: 'SIG 552', damage: 74, accuracy: 55, bonuses: [bonus('Conserve', 30)] }, SIG_BASE);
-    assert.ok(conserve.sustain / plain.sustain > conserve.burst / plain.burst);
+    assert.ok(conserve.sustain > plain.sustain);
+    assert.equal(conserve.single, plain.single);
 });
 
 test('REQ-003 #13: Nock Gun cannot take a Recoil Pad, so it burns ammo faster than an identical padded shotgun', () => {
@@ -105,13 +104,38 @@ test('REQ-003 #21: Puncture only removes armour, so p% Puncture matches p% Penet
     const score = (name) => calcPowerScore({ name: 'SIG 552', damage: 74, accuracy: 55, bonuses: [bonus(name, 33)] }, SIG_BASE);
     const puncture = score('Puncture');
     const penetrate = score('Penetrate');
-    assert.ok(Math.abs(puncture.burst - penetrate.burst) <= 1);
+    assert.ok(Math.abs(puncture.single - penetrate.single) <= 1);
     assert.ok(Math.abs(puncture.sustain - penetrate.sustain) <= 1);
 });
 
 test('REQ-003 #20: two computed bonuses stack', () => {
-    const weapon = (bonuses) => calcPowerScore({ name: 'SIG 552', damage: 74, accuracy: 55, bonuses }, SIG_BASE).burst;
+    const weapon = (bonuses) => calcPowerScore({ name: 'SIG 552', damage: 74, accuracy: 55, bonuses }, SIG_BASE).single;
     const powerful = weapon([bonus('Powerful', 22)]);
     const deadeye = weapon([bonus('Deadeye', 46)]);
     assert.ok(weapon([bonus('Powerful', 22), bonus('Deadeye', 46)]) > Math.max(powerful, deadeye));
+});
+
+test('REQ-003 #15: single hit is one attack, so clip size and rate of fire do not change it', () => {
+    // Both are rifles with the same mods; only Enfield's slower Rate of Fire stretches its clip.
+    const sig = calcPowerScore({ name: 'SIG 552', damage: 74, accuracy: 55, bonuses: [] }, SIG_BASE);
+    const enfield = calcPowerScore({ name: 'Enfield SA-80', damage: 74, accuracy: 55, bonuses: [] }, SIG_BASE);
+    assert.equal(enfield.single, sig.single);
+    assert.ok(enfield.sustain > sig.sustain);
+});
+
+test('REQ-003 #15: single hit counts hit chance', () => {
+    const plain = calcPowerScore({ name: 'SIG 552', damage: 74, accuracy: 55, bonuses: [] }, SIG_BASE);
+    const accurate = calcPowerScore({ name: 'SIG 552', damage: 74, accuracy: 65, bonuses: [] }, SIG_BASE);
+    const sureShot = calcPowerScore({ name: 'SIG 552', damage: 74, accuracy: 55, bonuses: [bonus('Sure Shot', 30)] }, SIG_BASE);
+    assert.ok(accurate.single > plain.single);
+    assert.ok(sureShot.single > plain.single);
+});
+
+test('REQ-003 #15: Assassinate and Blindside raise sustain but not single hit', () => {
+    ['Assassinate', 'Blindside'].forEach((name) => {
+        const plain = calcPowerScore({ name: 'SIG 552', damage: 74, accuracy: 55, bonuses: [] }, SIG_BASE);
+        const withBonus = calcPowerScore({ name: 'SIG 552', damage: 74, accuracy: 55, bonuses: [bonus(name, 50)] }, SIG_BASE);
+        assert.equal(withBonus.single, plain.single, name);
+        assert.ok(withBonus.sustain > plain.sustain, name);
+    });
 });
