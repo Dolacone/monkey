@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Torn: Quick Purchase
 // @namespace    quick-purchase
-// @version      1.0.3
-// @description  Alert when the target abroad item restocks, and buy it by clicking the travel message bar (or pressing q / space) three times
+// @version      1.1.0
+// @description  Alert when the target abroad item restocks and buy it by clicking the travel message bar (or pressing q / space) three times; in flight, one click uses the self-hosp item
 // @author       Dolacone
 // @match        https://www.torn.com/page.php?sid=travel*
 // @downloadURL  https://raw.githubusercontent.com/Dolacone/monkey/refs/heads/master/quick-purchase/quick-purchase.js
@@ -15,9 +15,10 @@
   'use strict';
 
   const TARGET = 'Xanax';
+  const HOSP_ITEM = 'Blood Bag : A+';
   const SOUND_URL = 'https://cdn.pixabay.com/download/audio/2024/05/23/audio_336d55dfa8.mp3?filename=servant-bell-ring-2-211683.mp3';
 
-  // ---- Rules (REQ-002 #1-3, #15, REQ-003 #1-3) ----
+  // ---- Rules (REQ-006 #1-3) ----
 
   function parseStock(text) {
     const digits = String(text).replace(/[^0-9]/g, '');
@@ -28,13 +29,39 @@
     return (prev === undefined || prev === 0) && now !== null && now > 0;
   }
 
+  // Abroad three-step buy flow.
   function nextAction(step, panel) {
     if (panel === 'confirm') return 'confirm';
     if (panel === 'amount') return 'panelBuy';
     return step === 0 ? 'max' : 'buy';
   }
 
-  // ---- Keyboard (REQ-002 #9-12) ----
+  // ---- Flight (REQ-004) ----
+
+  function isOutbound(flightText) {
+    return /^\s*Torn to /.test(String(flightText));
+  }
+
+  function findSlots(slots, name) {
+    return (Array.isArray(slots) ? slots : []).filter((s) => s && s.item && s.item.name === name);
+  }
+
+  function formatDuration(seconds) {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    return h ? `${h}h ${m}m` : `${m}m`;
+  }
+
+  function messageText(html) {
+    return String(html || '')
+      .replace(/<span[^>]*data-time="(\d+)"[^>]*>\s*<\/span>/g, (_, s) => formatDuration(Number(s)))
+      .replace(/<br\s*\/?>/gi, ' ')
+      .replace(/<[^>]+>/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  // ---- Keyboard (REQ-001 #5-8) ----
 
   const TEXT_INPUT_EXCLUDED = ['button', 'submit', 'reset', 'checkbox', 'radio', 'image', 'file', 'range', 'color'];
 
@@ -53,13 +80,14 @@
   }
 
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { parseStock, isRestock, nextAction, isTriggerKey };
+    module.exports = { parseStock, isRestock, nextAction, isOutbound, findSlots, messageText, isTriggerKey };
     return;
   }
 
   // ---- DOM ----
 
   const BAR = '.info-msg-cont .msg';
+  const FLIGHT_BAR = "section[class*='flightProgressSection___']";
   const ROWS = "[class*='stockTableWrapper___'] li";
 
   const style = document.createElement('style');
@@ -78,6 +106,7 @@
   let lastStock;
   let alerted = false;
   let bodyBackground = '';
+  let busy = false;
 
   function findTargetRow() {
     return [...document.querySelectorAll(ROWS)].find(
@@ -104,8 +133,16 @@
     return itemId;
   }
 
-  function show(text) {
-    const bar = document.querySelector(BAR);
+  function inFlight() {
+    return document.body.dataset.traveling === 'true';
+  }
+
+  function barSelector() {
+    return inFlight() ? FLIGHT_BAR : BAR;
+  }
+
+  function show(text, label = TARGET) {
+    const bar = document.querySelector(barSelector());
     if (!bar) return;
     bar.classList.add('qp-active');
     let status = bar.querySelector('.qp-status');
@@ -114,7 +151,7 @@
       status.className = 'qp-status';
       bar.appendChild(status);
     }
-    status.textContent = `[${TARGET}] ${text}`;
+    status.textContent = `[${label}] ${text}`;
   }
 
   function keepScroll(action) {
@@ -207,22 +244,72 @@
     show(`CART -> ${amount.querySelector("[class*='question___']").textContent.trim()} | next click: BUY`);
   }
 
+  async function travelData(step, { method = 'GET', body } = {}) {
+    try {
+      const res = await fetch(window.addRFC(`/page.php?sid=travelData&step=${step}`), {
+        method,
+        credentials: 'same-origin',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        body: body === undefined ? undefined : JSON.stringify(body),
+      });
+      let data = null;
+      try { data = await res.json(); } catch (e) { /* non-JSON reply */ }
+      const ok = res.ok && !!data && data.success !== false && !data.error;
+      const raw = data && (data.message || data.text || data.error?.message || (typeof data.error === 'string' ? data.error : ''));
+      return { ok, data, message: messageText(raw) || (ok ? 'done' : 'Torn did not accept that.') };
+    } catch (err) {
+      return { ok: false, data: null, message: 'Could not reach Torn.' };
+    }
+  }
+
+  async function runFlight() {
+    if (busy) return;
+    const label = HOSP_ITEM;
+    if (!isOutbound(document.querySelector(FLIGHT_BAR)?.textContent)) {
+      return show('flying to Torn | nothing to do', label);
+    }
+    busy = true;
+    try {
+      show('HOSP: reading bag...', label);
+      const inv = await travelData('inventory');
+      if (!inv.ok) return show(`HOSP failed: ${inv.message} | next click: HOSP`, label);
+      const held = findSlots(inv.data.slots, HOSP_ITEM);
+      if (!held.length) return show('HOSP: not in bag | nothing to do', label);
+      show('HOSP: using...', label);
+      const res = await travelData('useItem', { method: 'POST', body: { slotID: held[0].ID } });
+      if (!res.ok) return show(`HOSP failed: ${res.message} | next click: HOSP`, label);
+      const next = held.length > 1 ? `HOSP (${held.length - 1} left)` : 'nothing (none left)';
+      show(`HOSP: ${res.message} | next click: ${next}`, label);
+    } finally {
+      busy = false;
+    }
+  }
+
   function isShopShown() {
     return !!document.querySelector(BAR) && !!document.querySelector(ROWS);
   }
 
+  function hasBar() {
+    return inFlight() ? !!document.querySelector(FLIGHT_BAR) : isShopShown();
+  }
+
+  function trigger() {
+    if (inFlight()) runFlight();
+    else runStep();
+  }
+
   function onBarClick(event) {
-    if (event.target.closest(BAR) && isShopShown()) runStep();
+    if (event.target.closest(barSelector()) && hasBar()) trigger();
   }
 
   let suppressSpaceUp = false;
 
   function onKeyDown(event) {
-    if (!isShopShown() || !isTriggerKey(event)) return;
+    if (!hasBar() || !isTriggerKey(event)) return;
     event.preventDefault();
     event.stopPropagation();
     if (event.key === ' ') suppressSpaceUp = true;
-    runStep();
+    trigger();
   }
 
   function onKeyUp(event) {
