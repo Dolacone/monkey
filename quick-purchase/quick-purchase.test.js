@@ -1,22 +1,15 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 
-const { mergeSettings, settingsError, parseStock, isRestock, isOutbound, parseBar, abroadAction, packAction, pickOwned, packBody, findSlots, messageText, isTriggerKey } = require('./quick-purchase.js');
+const { packageSettings, parseStock, isRestock, packStep, abroadStep, pickOwned, messageText, isTriggerKey } = require('./quick-purchase.js');
 
-// REQ-002 #1, #3, #6: stored values win, missing keys fall back to defaults, and an empty value stays empty (skip).
-test('mergeSettings fills defaults and keeps empty values', () => {
-  assert.deepEqual(mergeSettings(null), { target: 'Xanax', sell: 'Speed', hosp: 'Blood Bag : A+', med: 'Blood Bag : O+' });
-  assert.deepEqual(mergeSettings({ target: ' Plushie ', hosp: '' }), { target: 'Plushie', sell: 'Speed', hosp: '', med: 'Blood Bag : O+' });
-  assert.equal(mergeSettings({ target: 42 }).target, 'Xanax');
+const CFG = { target: 'Xanax', sell: 'Vicodin', hosp: 'Blood Bag : A+', med: 'Blood Bag : O+' };
+
+// REQ-003 #4: bag order self-hosp, med-out, sell becomes the three item settings; the target stays.
+test('packageSettings reads the bag in self-hosp, med-out, sell order', () => {
+  assert.deepEqual(packageSettings(['Blood Bag : B+', 'Morphine', 'Speed'], CFG),
+    { target: 'Xanax', hosp: 'Blood Bag : B+', med: 'Morphine', sell: 'Speed' });
 });
-
-// REQ-002 #7: the sell item may not equal the target, or the next click would sell what was just bought.
-test('settingsError rejects a sell item equal to the target, ignoring case', () => {
-  assert.equal(typeof settingsError({ target: 'Xanax', sell: ' xanax' }), 'string');
-  assert.equal(settingsError({ target: 'Xanax', sell: 'Speed' }), null);
-  assert.equal(settingsError({ target: '', sell: '' }), null);
-});
-
 
 test('parseStock reads the stock cell text including the screen-reader label', () => {
   assert.equal(parseStock('9stock'), 9);
@@ -25,158 +18,55 @@ test('parseStock reads the stock cell text including the screen-reader label', (
   assert.equal(parseStock('stock'), null);
 });
 
-// REQ-006 #1: 0 -> positive is a restock.
-test('isRestock fires when stock rises from 0', () => {
-  assert.equal(isRestock(0, 1), true);
-  assert.equal(isRestock(0, 4713), true);
-});
-
-// REQ-006 #2: other buyers lowering the stock, or positive -> positive, never fires.
-test('isRestock ignores drops and positive-to-positive changes', () => {
-  assert.equal(isRestock(1770, 1745), false);
-  assert.equal(isRestock(5, 0), false);
-  assert.equal(isRestock(5, 9), false);
-  assert.equal(isRestock(0, 0), false);
-  assert.equal(isRestock(0, null), false);
-});
-
-// REQ-006 #3: the first reading fires when the target is already in stock, and stays quiet at 0.
-test('isRestock fires on a non-zero first reading only', () => {
+// REQ-006 #1: a non-zero first reading and any increase alert; drops from other buyers do not.
+test('isRestock fires on a non-zero first reading and on any increase', () => {
   assert.equal(isRestock(undefined, 38), true);
   assert.equal(isRestock(undefined, 0), false);
-  assert.equal(isRestock(undefined, null), false);
+  assert.equal(isRestock(0, 855), true);
+  assert.equal(isRestock(5, 9), true);
+  assert.equal(isRestock(1770, 1745), false);
+  assert.equal(isRestock(5, 5), false);
 });
 
-const BASE = { hasTarget: true, hasMed: true, sold: true, stock: 0, price: 646899, cash: 42925112, free: 1, hospital: true, medOut: false, sellPacked: true, sellRefused: false };
-const act = (over) => abroadAction({ ...BASE, ...over });
-
-// REQ-005 #1: in hospital, wait for the restock before using the med-out item.
-test('abroadAction waits in hospital until the target is in stock', () => {
-  assert.equal(act({ stock: 0 }).act, null);
-  assert.match(act({ stock: 0 }).text, /waiting for restock/);
-  assert.equal(act({ stock: null }).act, null);
-  assert.equal(act({ stock: 855 }).act, 'med');
+// REQ-003 #1: one item per click, self-hosp, then med-out, then fill.
+test('packStep packs self-hosp, then med-out, then fills the free slots', () => {
+  assert.deepEqual(packStep([], 38, CFG), { act: 'pack', name: 'Blood Bag : A+' });
+  assert.deepEqual(packStep(['Blood Bag : A+'], 37, CFG), { act: 'pack', name: 'Blood Bag : O+' });
+  assert.deepEqual(packStep(['Blood Bag : A+', 'Blood Bag : O+'], 36, CFG), { act: 'fill', name: 'Vicodin' });
+  assert.deepEqual(packStep(['Blood Bag : A+', 'Blood Bag : O+', 'Vicodin'], 0, CFG), { act: null });
 });
 
-// REQ-005 #1, #3: med out comes first; after a successful med out the next click sells, then buys.
-test('abroadAction orders med out, sell, buy', () => {
-  assert.equal(act({ stock: 855 }).act, 'med');
-  assert.equal(act({ stock: 855, medOut: true }).act, 'sell');
-  assert.equal(act({ stock: 855, hospital: false }).act, 'sell');
-  assert.equal(act({ stock: 855, hospital: false, sellPacked: false, free: 37 }).act, 'buy');
+// REQ-005 #1: in hospital, med out only after the target is in stock.
+test('abroadStep meds out in hospital when the target is in stock', () => {
+  assert.equal(abroadStep({ hospital: true, hasMed: true, sellCount: 36, stock: 855 }), 'med');
+  assert.equal(abroadStep({ hospital: true, hasMed: true, sellCount: 36, stock: 0 }), null);
+  assert.equal(abroadStep({ hospital: true, hasMed: false, sellCount: 36, stock: 855 }), null);
 });
 
-// REQ-005 #1: a country without the target does nothing at all, not even med out or sell.
-test('abroadAction does nothing when the target is not sold here', () => {
-  assert.deepEqual(act({ sold: false, stock: 855 }), { act: null, text: 'not sold here' });
+// REQ-005 #1: out of hospital, sell everything first, then buy while the target is in stock.
+test('abroadStep sells before buying out of hospital', () => {
+  assert.equal(abroadStep({ hospital: false, hasMed: false, sellCount: 36, stock: 0 }), 'sell');
+  assert.equal(abroadStep({ hospital: false, hasMed: false, sellCount: 0, stock: 855 }), 'buy');
+  assert.equal(abroadStep({ hospital: false, hasMed: true, sellCount: 0, stock: 855 }), 'buy');
+  assert.equal(abroadStep({ hospital: false, hasMed: false, sellCount: 0, stock: 0 }), null);
 });
 
-// REQ-005 #4: once the shop refuses the sell item, clicks go straight to buying.
-test('abroadAction skips the sell after a refusal', () => {
-  assert.equal(act({ hospital: false, stock: 855, free: 2, sellRefused: true }).act, 'buy');
-});
-
-// REQ-002 #6: an empty target skips med out and buy, but still sells; an empty med-out item never meds out.
-test('abroadAction skips the steps whose setting is empty', () => {
-  assert.equal(act({ hasTarget: false, sold: false, stock: null }).act, null);
-  assert.match(act({ hasTarget: false, sold: false, stock: null }).text, /no target/);
-  assert.equal(act({ hasTarget: false, sold: false, hospital: false }).act, 'sell');
-  assert.match(act({ hasTarget: false, sold: false, hospital: false, sellPacked: false }).text, /no target/);
-  assert.match(act({ hasMed: false, stock: 855 }).text, /no med-out/);
-});
-
-// REQ-005 #2: buy the smallest of stock, free slots, and what the cash covers.
-test('abroadAction buys min(stock, free, cash / price)', () => {
-  const out = { hospital: false, sellPacked: false };
-  assert.equal(act({ ...out, stock: 855, free: 37 }).amount, 37);
-  assert.equal(act({ ...out, stock: 5, free: 37 }).amount, 5);
-  assert.equal(act({ ...out, stock: 855, free: 37, cash: 646899 * 3 + 1 }).amount, 3);
-});
-
-// REQ-005 #1: nothing to buy gives a reason instead of a request.
-test('abroadAction explains bag full, no stock, and no cash', () => {
-  const out = { hospital: false, sellPacked: false };
-  assert.deepEqual(act({ ...out, stock: 855, free: 0 }), { act: null, text: 'bag full' });
-  assert.match(act({ ...out, stock: 0, free: 37 }).text, /out of stock/);
-  assert.deepEqual(act({ ...out, stock: 855, free: 37, cash: 100 }), { act: null, text: 'not enough cash' });
-});
-
-// REQ-005 #2: cash and free slots come from the bar; packed items count as purchased.
-test('parseBar reads cash and free slots from the message bar', () => {
-  assert.deepEqual(parseBar('You are in Japan and have $42,925,112. You have purchased 37 / 38 items so far.'), { cash: 42925112, free: 1 });
-  assert.equal(parseBar('Torn to Japan.'), null);
-});
-
-const PACK = { hosp: 'Blood Bag : A+', med: 'Blood Bag : O+', sell: 'Speed', carried: [], free: 38, skip: {} };
-const pack = (over) => packAction({ ...PACK, ...over });
-
-// REQ-003 #1: one item per click, in order self-hosp, med-out, then fill the rest with the sell item.
-test('packAction packs self-hosp, then med-out, then fills', () => {
-  assert.deepEqual(pack({}), { act: 'pack', role: 'hosp', name: 'Blood Bag : A+' });
-  assert.equal(pack({ carried: ['Blood Bag : A+'], free: 37 }).role, 'med');
-  assert.equal(pack({ carried: ['blood bag : a+', 'Blood Bag : O+'], free: 36 }).act, 'fill');
-  assert.deepEqual(pack({ carried: ['Blood Bag : A+', 'Blood Bag : O+'], free: 0 }), { act: null, text: 'packed | ready to fly' });
-});
-
-// REQ-003 #4 and REQ-002 #6: a skipped or empty item moves on to the next step instead of blocking the trip.
-test('packAction moves past skipped and empty items', () => {
-  assert.equal(pack({ skip: { hosp: true } }).role, 'med');
-  assert.equal(pack({ hosp: '', med: '' }).act, 'fill');
-  assert.equal(pack({ skip: { hosp: true, med: true, sell: true } }).act, null);
-});
-
-const OWNED = [
-  { id: 738, name: 'Blood Bag : O+', faction: false, armouryID: null, disabled: false },
-  { id: 738, name: 'Blood Bag : O+', faction: true, armouryID: null, disabled: false },
-  { id: 204, name: 'Speed', faction: true, armouryID: null, disabled: false },
-  { id: 732, name: 'Blood Bag : A+', faction: true, armouryID: null, disabled: true },
-];
-
-// REQ-003 #2: self-hosp and med-out items take the faction copy when both exist.
-test('pickOwned prefers the faction copy for self-hosp and med-out', () => {
-  assert.equal(pickOwned(OWNED, 'blood bag : o+', true).faction, true);
-  assert.equal(pickOwned(OWNED.filter((e) => !e.faction), 'Blood Bag : O+', true).faction, false);
-  assert.equal(pickOwned(OWNED, 'Blood Bag : A+', true), null, 'disabled entries are not owned');
-});
-
-// REQ-003 #3: filling uses personal copies only; a faction-only sell item counts as not owned.
-test('pickOwned fills with personal copies only', () => {
-  assert.equal(pickOwned(OWNED, 'Speed', false), null);
-  assert.equal(pickOwned(OWNED, 'Blood Bag : O+', false).faction, false);
-});
-
-// REQ-003 #2: the add request marks faction copies the way the native Add button does.
-test('packBody matches the native addSlotItem body', () => {
-  assert.deepEqual(packBody({ id: 732, faction: true, armouryID: null }), { itemID: 732, factionItem: '1' });
-  assert.deepEqual(packBody({ id: 738, faction: false, armouryID: null }), { itemID: 738 });
-});
-
-// REQ-004 #1, #3: only the flight away from Torn self-hosps; the flight home does nothing.
-test('isOutbound reads the flight progress text', () => {
-  assert.equal(isOutbound('Torn to Japan.Remaining Flight Time - 00:08:18Landing at 10:40:50.'), true);
-  assert.equal(isOutbound('Japan to Torn.Remaining Flight Time - 00:08:18Landing at 10:40:50.'), false);
-  assert.equal(isOutbound(undefined), false);
-});
-
-// REQ-004 #1, #2: the hosp item is found by name; a used slot stays in the list with item null.
-test('findSlots skips used slots and other items', () => {
-  const slots = [
-    { ID: 1, item: null },
-    { ID: 2, item: { name: 'Blood Bag : O+' } },
-    { ID: 3, item: { name: 'Blood Bag : A+' } },
-    { ID: 4, item: { name: 'Speed' } },
+// REQ-003 #2: the faction copy is packed when both exist.
+test('pickOwned prefers the faction copy', () => {
+  const list = [
+    { id: 738, name: 'Blood Bag : O+', faction: false, disabled: false },
+    { id: 738, name: 'Blood Bag : O+', faction: true, disabled: false },
+    { id: 204, name: 'Speed', faction: false, disabled: false },
   ];
-  assert.deepEqual(findSlots(slots, 'Blood Bag : A+').map((s) => s.ID), [3]);
-  assert.deepEqual(findSlots(slots, 'blood bag : a+').map((s) => s.ID), [3], 'REQ-002 #5: names ignore case');
-  assert.deepEqual(findSlots(slots, 'Xanax'), []);
-  assert.deepEqual(findSlots(undefined, 'Blood Bag : A+'), []);
+  assert.equal(pickOwned(list, 'Blood Bag : O+').faction, true);
+  assert.equal(pickOwned(list, 'Speed').faction, false);
+  assert.equal(pickOwned(list, 'Blood Bag : A+'), null);
 });
 
-// REQ-001 #12-13: Torn's HTML reply is shown as plain text, with the cooldown counter filled in.
+// REQ-001 #11: Torn's HTML reply is shown as plain text, with the cooldown counter filled in.
 test('messageText turns the useItem reply into plain text', () => {
   const html = 'You begin administering a blood transfusion, but quickly realize you\'re not compatible with this blood type.<br>You now have a medical cooldown of <span class="counter-wrap" data-time="13714"></span>.';
   assert.equal(messageText(html), "You begin administering a blood transfusion, but quickly realize you're not compatible with this blood type. You now have a medical cooldown of 3h 48m.");
-  assert.equal(messageText(undefined), '');
 });
 
 const BODY = { tagName: 'BODY' };
@@ -191,7 +81,7 @@ test('isTriggerKey accepts q and space only', () => {
   assert.equal(isTriggerKey(key('Enter')), false);
 });
 
-// REQ-001 #6: typing in the quantity field or chat keeps its normal behaviour.
+// REQ-001 #6: typing in an input or chat keeps its normal behaviour.
 test('isTriggerKey ignores keys typed into editable fields', () => {
   assert.equal(isTriggerKey(key('q', { target: { tagName: 'INPUT', type: 'text' } })), false);
   assert.equal(isTriggerKey(key(' ', { target: { tagName: 'TEXTAREA' } })), false);
