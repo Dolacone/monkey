@@ -9,7 +9,7 @@ Run with `node --test` in this folder.
 
 ## Coverage
 
-- `packageSettings`（REQ-003 條件 4）：背包順序對應入院、出院、賣出道具，目標商品不變。
+- `packageSettings`（REQ-002 條件 5）：背包順序對應入院、出院、賣出道具，目標商品不變。
 - `parseStock`：stock 格文字解析成數字，含 `stock` 標籤與千分位逗號。
 - `isRestock`（REQ-006 條件 1）：第一次讀數大於 0、任何增加都觸發。
   - 減少與不變不觸發。

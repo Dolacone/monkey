@@ -5,7 +5,7 @@ const { packageSettings, parseStock, isRestock, packStep, abroadStep, pickOwned,
 
 const CFG = { target: 'Xanax', sell: 'Vicodin', hosp: 'Blood Bag : A+', med: 'Blood Bag : O+' };
 
-// REQ-003 #4: bag order self-hosp, med-out, sell becomes the three item settings; the target stays.
+// REQ-002 #5: bag order self-hosp, med-out, sell becomes the three item settings; the target stays.
 test('packageSettings reads the bag in self-hosp, med-out, sell order', () => {
   assert.deepEqual(packageSettings(['Blood Bag : B+', 'Morphine', 'Speed'], CFG),
     { target: 'Xanax', hosp: 'Blood Bag : B+', med: 'Morphine', sell: 'Speed' });

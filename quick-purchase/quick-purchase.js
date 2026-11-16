@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn: Quick Purchase
 // @namespace    quick-purchase
-// @version      1.4.2
+// @version      1.4.3
 // @description  Alert when the target abroad item restocks; each click on the travel message bar (or q / space) packs at the travel agency, self-hosps in flight, and abroad meds out, sells the packed item, and buys the target
 // @author       Dolacone
 // @match        https://www.torn.com/page.php?sid=travel*
@@ -21,7 +21,7 @@
   const STORAGE_KEY = 'quickPurchase.settings';
   const SOUND_URL = 'https://cdn.pixabay.com/download/audio/2024/05/23/audio_336d55dfa8.mp3?filename=servant-bell-ring-2-211683.mp3';
 
-  // REQ-003 #4: the bag holds self-hosp, med-out, then the sell item.
+  // REQ-002 #5: the bag holds self-hosp, med-out, then the sell item.
   function packageSettings(names, cfg) {
     return { ...cfg, hosp: names[0] ?? cfg.hosp, med: names[1] ?? cfg.med, sell: names[2] ?? cfg.sell };
   }
@@ -113,7 +113,6 @@
     '.qp-status{font-size:12px;font-weight:bold}' +
     '.qp-green{background:#2e7d32 !important;color:#fff !important}' +
     '.qp-settings{margin:0 0 6px;font-size:12px}' +
-    '.qp-settings [hidden]{display:none !important}' +
     '.qp-settings form{display:grid;grid-template-columns:auto 1fr;gap:4px 8px;max-width:420px;margin-top:4px}' +
     '.qp-bar{margin:0 0 6px;padding:6px 8px;border:1px solid #888;border-radius:4px;cursor:pointer;font-size:12px}';
   document.head.appendChild(style);
@@ -303,7 +302,7 @@
     event.stopPropagation();
   }
 
-  // ---- Settings panel (REQ-002 #2, REQ-003 #4) and agency bar (REQ-003 #3) ----
+  // ---- Settings panel (REQ-002 #2, REQ-002 #5) and agency bar (REQ-003 #3) ----
 
   function renderSettings() {
     const root = document.querySelector('#travel-root');
@@ -331,7 +330,7 @@
     save.textContent = 'Save';
     const load = document.createElement('button');
     load.type = 'button';
-    load.className = 'torn-btn qp-load';
+    load.className = 'torn-btn';
     load.textContent = 'Load package';
     form.append(save, load);
     form.addEventListener('submit', (event) => {
@@ -347,12 +346,9 @@
     root.before(box);
   }
 
-  function renderAgency() {
-    const agency = atAgency();
-    const load = document.querySelector('.qp-load');
-    if (load) load.hidden = !agency;
+  function renderAgencyBar() {
     const bar = document.querySelector(AGENCY_BAR);
-    if (!agency) return bar?.remove();
+    if (!atAgency()) return bar?.remove();
     const box = document.querySelector('.qp-settings');
     if (bar || !box) return;
     const el = document.createElement('div');
@@ -363,7 +359,7 @@
 
   function onMutation() {
     renderSettings();
-    renderAgency();
+    renderAgencyBar();
     const bar = document.querySelector(BAR);
     if (!bar) return;
     if (alerted) bar.classList.add('qp-green');

@@ -31,12 +31,12 @@ Selectors, request formats, and stored keys are in `quick-purchase.md`.
 - 存在 torn.com 的 `localStorage`。
   - Tampermonkey 的 `GM_setValue` 需要 `@grant`，會讓腳本改在沙盒執行，讀不到 `window.addRFC`。
 - 存檔時把 stock 讀數重設，新的目標商品以第一次讀數判斷。
+- `Load package` 把背包道具名稱去重後依序對應入院、出院、賣出道具。
 
 ## REQ-003 — 旅行社打包
 
 - 打包 request 的格式取自頁面原生 Add 與 Fill 按鈕實際送出的內容。
 - 旅行社沒有訊息列，腳本插一條在 React 管理的節點之外。
-- `Load package` 把背包道具名稱去重後依序對應入院、出院、賣出道具。
 
 ## REQ-006 — 補貨偵測
 

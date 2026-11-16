@@ -18,9 +18,7 @@
 - `document-idle` 時執行一次。
 - `MutationObserver` 監看 `document.body`。
   - 選項：`childList`、`subtree`、`characterData`。
-  - 每次變動插入缺少的設定表單與旅行社訊息列。
-  - 每次變動依是否在旅行社切換 `Load package` 的 `hidden`。
-  - 每次變動重新讀目標商品的 stock。
+  - 每次變動插入缺少的設定表單與旅行社訊息列。  - 每次變動重新讀目標商品的 stock。
   - 提醒中，每次變動把綠色 class 加回訊息列。
 - `document` 的 `click`，在捕獲階段監聽。
   - 點擊落在訊息列內時，執行一個動作。
@@ -35,7 +33,7 @@
 - `localStorage` 鍵 `quickPurchase.settings`，值為 JSON `{ target, sell, hosp, med }`。
   - 缺少的鍵用預設值。
 - 設定表單 `div.qp-settings` 插在 `#travel-root` 前面，建立時填入目前的設定。
-- `Load package` 按鈕在設定表單內，只在旅行社顯示。
+- `Load package` 按鈕在設定表單內。
 - 表單按鈕使用 Torn 的 `torn-btn` class，跟隨頁面的深色或淺色模式。
 
 ## Request
@@ -82,7 +80,5 @@
 - 去程途中 `body[data-abroad]` 已是 `"true"`，飛行判斷只看 `data-traveling`。
 - 背包 DOM 的格子標籤 `"<名稱> slot N"` 保留原編號，且在使用道具後不會立刻更新。
   - 背包內容一律讀 `step=inventory`。
-- `torn-btn` 的 `display` 蓋過 `hidden` 屬性。
-  - `.qp-settings [hidden]` 以 `display:none !important` 隱藏。
 - class 名稱帶雜湊後綴。
   - 一律用 `[class*='名稱___']` 子字串比對。
