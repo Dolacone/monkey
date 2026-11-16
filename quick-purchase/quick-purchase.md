@@ -35,6 +35,7 @@
   - 缺少的鍵用預設值。
 - 設定連結 `div.qp-settings` 插在 `#travel-root` 前面。
 - `Load package` 按鈕在設定表單內，只在旅行社顯示。
+- 表單按鈕使用 Torn 的 `torn-btn` class，跟隨頁面的深色或淺色模式。
 
 ## Request
 

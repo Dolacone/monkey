@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn: Quick Purchase
 // @namespace    quick-purchase
-// @version      1.4.0
+// @version      1.4.1
 // @description  Alert when the target abroad item restocks; each click on the travel message bar (or q / space) packs at the travel agency, self-hosps in flight, and abroad meds out, sells the packed item, and buys the target
 // @author       Dolacone
 // @match        https://www.torn.com/page.php?sid=travel*
@@ -327,9 +327,11 @@
     const fill = () => { for (const key of Object.keys(DEFAULTS)) form.elements[key].value = cfg[key]; };
     const save = document.createElement('button');
     save.type = 'submit';
+    save.className = 'torn-btn';
     save.textContent = 'Save';
     const load = document.createElement('button');
     load.type = 'button';
+    load.className = 'torn-btn';
     load.textContent = 'Load package';
     form.append(save, load);
     link.addEventListener('click', () => {
