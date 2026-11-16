@@ -1,49 +1,5 @@
 # DESIGN
 
-## 海外三段點擊 — 模擬點擊而不是直接送 request
-
-購買的實際 request 是 travel bundle 的 RTK Query `buy` mutation：
-
-```
-GET /page.php?sid=travelData&step=buy&itemID=<ID>&amount=<n>&rfcv=<token>
-```
-
-- 腳本不直接呼叫它，改為點擊頁面上的按鈕。
-- 這樣 Torn 自己的驗證照常運作。
-  - 驗證項目：數量超過庫存、攜帶上限、金額。
-- 確認框也照常出現。
-- 購買後，React 自己更新庫存與訊息列。
-
-## 海外三段點擊 — 點擊順序
-
-- 確認框是否打開，直接看 DOM 判斷，不靠計數器。
-- 計數器只區分「最大值」與「Buy」兩步。
-- 確認框打開時，商品列被確認框整個取代。
-  - 商品名稱與表單都消失。
-  - 商品 ID 改從確認框問句比對。
-
-## 海外三段點擊 — 手機排版
-
-travel bundle 的 Buy 按鈕元件依排版渲染：
-
-- 桌面版：`torn-btn` 文字 Buy。
-- 手機版：`buyIconButton___` 購物車圖示。
-- 兩者都是 `type=submit`，`form=item-<ID>-form`。
-  - 表單的 `onSubmit` 切換 buy panel 開關。
-
-buy panel 的內容依排版不同：
-
-- 桌面版：直接是確認框。
-- 手機版：先是數量面板 `amountPanel___`，按面板的 Buy 才換成確認框。
-  - 數量面板的輸入框帶 `autoFocus`。
-  - 腳本按下購物車 150ms 後，焦點在面板內就 `blur()`。
-
-## 海外三段點擊 — 不捲動
-
-- 確認框的 Yes 按鈕帶 `autoFocus`。
-  - 彈出時，瀏覽器會把它捲進畫面。
-- 每次點擊後 800ms 內，每個 animation frame 把捲動位置拉回點擊前的值。
-
 ## REQ-001 — 訊息列狀態文字
 
 - 訊息列由 React 管理。
@@ -54,7 +10,6 @@ buy panel 的內容依排版不同：
 
 ## REQ-001 — 空白鍵與已取得焦點的按鈕
 
-- 確認框的 Yes 帶 `autoFocus`。
 - 空白鍵 `keyup` 時，瀏覽器會點擊取得焦點的按鈕。
 - 腳本在捕獲階段攔下觸發的 `keydown` 與對應的 `keyup`。
   - 兩者都呼叫 `preventDefault()` 與 `stopPropagation()`。
@@ -85,7 +40,7 @@ buy panel 的內容依排版不同：
 ## REQ-006 — 提醒中再次觸發
 
 - 提醒尚未解除時再次觸發，不覆寫記下的原本背景色。
-- 按下 Yes 後，背景恢復成載入時的顏色。
+- 購買成功後，背景恢復成載入時的顏色。
 
 ## REQ-004 — 飛行中直接送 request
 
@@ -100,18 +55,41 @@ buy panel 的內容依排版不同：
   - 去程途中 `body[data-abroad]` 已是 `"true"`，不能用它判斷海外。
 - 入院後 `body[data-layout]` 即時變成 `"hospital"`。
 
+## REQ-005 — 海外直接送 request
+
+- 出院、賣出、購買都直接送 request，與 Torn Oracle 相同。
+  - 確認框與手機的數量面板都不經過。
+  - 兩種排版走同一條路徑。
+- 判斷順序寫在 `abroadAction`，只吃讀好的數值，方便測試。
+- 住院判斷讀 `body[data-layout]`。
+  - 出院成功後記一個旗標，下一次點擊不等頁面更新就視為已出院。
+  - 旗標在重新載入頁面後清掉，之後以頁面標示為準。
+- 現金與空格讀訊息列。
+  - `purchased <已買> / <上限>` 計入帶出國的道具，空格 = 上限 - 已買。
+- 有沒有帶賣出道具先看背包 DOM，避免每次購買前多一個 request。
+  - DOM 更新較慢，因此賣出前再讀 `step=inventory`。
+  - `step=inventory` 已沒有賣出道具時，同一次點擊改走購買。
+- 賣出以第一格的 `slotID` 加上數量 `amount` 一次送出。
+- `item.isSellable === false` 時不送 request，直接視為被拒。
+- Torn 有回應但失敗時視為被拒；連不上 Torn 時下次點擊重試賣出。
+- 每次成功後送出 `window` 的 `focus` 事件。
+  - travel bundle 的 RTK Query 開了 `refetchOnFocus`，會重抓商店與背包。
+
 ## 測試覆蓋
 
-- 自動測試：REQ-001 條件 5-8、12、13 的文字轉換，REQ-004 條件 1-3 的判斷規則，REQ-006 條件 1-3。
-  - 見 `quick-purchase.test.md`。
+- 自動測試：見 `quick-purchase.test.md`。
+  - REQ-001 條件 5-8，條件 12、13 的文字轉換。
+  - REQ-004 條件 1-3 的判斷規則。
+  - REQ-005 條件 1-4 的判斷順序、購買數量、訊息列解析。
+  - REQ-006 條件 1-3。
 - 手動檢查：
   - REQ-004 條件 1 的 request：使用者在飛往日本途中，以 console 送出相同的 `step=useItem`，回應 `success: true`，`body[data-layout]` 變成 `"hospital"`。
-  - 海外三段點擊：使用者在開曼群島以 Bearer Bond 實測。
+  - 日本住院中讀 DOM：訊息列與商店列表仍在，`Speed` 的 `isSellable` 為 `true`，訊息列 `purchased 37 / 38` 計入帶出國的道具。
   - REQ-006 條件 4 的訊息列變綠：以 Stingray Plushie 庫存變動實測。
-- 尚未實作：REQ-005，以及 REQ-001 條件 10、11 在海外的部分。
-  - 海外目前仍是三段點擊。
 - 尚未檢查：
-  - 安裝成 Tampermonkey 腳本後，飛行中點擊訊息列入院。
-  - 飛行中訊息列的狀態文字顯示。
+  - 安裝成 Tampermonkey 腳本後的整體流程。
+  - `step=sellItem` 與 `step=buy` 的實際回應。
+  - 出院道具在醫療冷卻約 3 小時 48 分時能否使用。
+  - 出院後 `body[data-layout]` 是否即時變回。
   - 回程飛行的 Flight progress 文字格式。
   - 目標 Xanax 的實際補貨觸發、整頁變紅與提示音。

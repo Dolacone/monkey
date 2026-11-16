@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 
-const { parseStock, isRestock, nextAction, isOutbound, findSlots, messageText, isTriggerKey } = require('./quick-purchase.js');
+const { parseStock, isRestock, isOutbound, parseBar, abroadAction, findSlots, messageText, isTriggerKey } = require('./quick-purchase.js');
 
 test('parseStock reads the stock cell text including the screen-reader label', () => {
   assert.equal(parseStock('9stock'), 9);
@@ -32,22 +32,55 @@ test('isRestock fires on a non-zero first reading only', () => {
   assert.equal(isRestock(undefined, null), false);
 });
 
-// Abroad three-step flow: an open confirm panel always wins, whatever the step counter says.
-test('nextAction confirms whenever the confirm panel is open', () => {
-  assert.equal(nextAction(0, 'confirm'), 'confirm');
-  assert.equal(nextAction(1, 'confirm'), 'confirm');
+const BASE = { sold: true, stock: 0, price: 646899, cash: 42925112, free: 1, hospital: true, medOut: false, sellPacked: true, sellRefused: false };
+const act = (over) => abroadAction({ ...BASE, ...over });
+
+// REQ-005 #1: in hospital, wait for the restock before using the med-out item.
+test('abroadAction waits in hospital until the target is in stock', () => {
+  assert.equal(act({ stock: 0 }).act, null);
+  assert.match(act({ stock: 0 }).text, /waiting for restock/);
+  assert.equal(act({ stock: null }).act, null);
+  assert.equal(act({ stock: 855 }).act, 'med');
 });
 
-// Abroad three-step flow: the mobile amount panel's Buy comes next whenever that panel is open.
-test('nextAction clicks the panel Buy whenever the mobile amount panel is open', () => {
-  assert.equal(nextAction(0, 'amount'), 'panelBuy');
-  assert.equal(nextAction(1, 'amount'), 'panelBuy');
+// REQ-005 #1, #3: med out comes first; after a successful med out the next click sells, then buys.
+test('abroadAction orders med out, sell, buy', () => {
+  assert.equal(act({ stock: 855 }).act, 'med');
+  assert.equal(act({ stock: 855, medOut: true }).act, 'sell');
+  assert.equal(act({ stock: 855, hospital: false }).act, 'sell');
+  assert.equal(act({ stock: 855, hospital: false, sellPacked: false, free: 37 }).act, 'buy');
 });
 
-// Abroad three-step flow: with no panel open, the first click fills max and the second clicks Buy (or the mobile cart).
-test('nextAction alternates max then buy with no panel open', () => {
-  assert.equal(nextAction(0, null), 'max');
-  assert.equal(nextAction(1, null), 'buy');
+// REQ-005 #1: a country without the target does nothing at all, not even med out or sell.
+test('abroadAction does nothing when the target is not sold here', () => {
+  assert.deepEqual(act({ sold: false, stock: 855 }), { act: null, text: 'not sold here' });
+});
+
+// REQ-005 #4: once the shop refuses the sell item, clicks go straight to buying.
+test('abroadAction skips the sell after a refusal', () => {
+  assert.equal(act({ hospital: false, stock: 855, free: 2, sellRefused: true }).act, 'buy');
+});
+
+// REQ-005 #2: buy the smallest of stock, free slots, and what the cash covers.
+test('abroadAction buys min(stock, free, cash / price)', () => {
+  const out = { hospital: false, sellPacked: false };
+  assert.equal(act({ ...out, stock: 855, free: 37 }).amount, 37);
+  assert.equal(act({ ...out, stock: 5, free: 37 }).amount, 5);
+  assert.equal(act({ ...out, stock: 855, free: 37, cash: 646899 * 3 + 1 }).amount, 3);
+});
+
+// REQ-005 #1: nothing to buy gives a reason instead of a request.
+test('abroadAction explains bag full, no stock, and no cash', () => {
+  const out = { hospital: false, sellPacked: false };
+  assert.deepEqual(act({ ...out, stock: 855, free: 0 }), { act: null, text: 'bag full' });
+  assert.match(act({ ...out, stock: 0, free: 37 }).text, /out of stock/);
+  assert.deepEqual(act({ ...out, stock: 855, free: 37, cash: 100 }), { act: null, text: 'not enough cash' });
+});
+
+// REQ-005 #2: cash and free slots come from the bar; packed items count as purchased.
+test('parseBar reads cash and free slots from the message bar', () => {
+  assert.deepEqual(parseBar('You are in Japan and have $42,925,112. You have purchased 37 / 38 items so far.'), { cash: 42925112, free: 1 });
+  assert.equal(parseBar('Torn to Japan.'), null);
 });
 
 // REQ-004 #1, #3: only the flight away from Torn self-hosps; the flight home does nothing.

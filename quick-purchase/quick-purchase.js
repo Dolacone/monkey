@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Torn: Quick Purchase
 // @namespace    quick-purchase
-// @version      1.1.0
-// @description  Alert when the target abroad item restocks and buy it by clicking the travel message bar (or pressing q / space) three times; in flight, one click uses the self-hosp item
+// @version      1.2.0
+// @description  Alert when the target abroad item restocks; each click on the travel message bar (or q / space) self-hosps in flight, and abroad meds out, sells the packed item, and buys the target
 // @author       Dolacone
 // @match        https://www.torn.com/page.php?sid=travel*
 // @downloadURL  https://raw.githubusercontent.com/Dolacone/monkey/refs/heads/master/quick-purchase/quick-purchase.js
@@ -14,11 +14,15 @@
 (function () {
   'use strict';
 
+  // ---- Settings (REQ-002) ----
+
   const TARGET = 'Xanax';
   const HOSP_ITEM = 'Blood Bag : A+';
+  const MED_ITEM = 'Blood Bag : O+';
+  const SELL_ITEM = 'Speed';
   const SOUND_URL = 'https://cdn.pixabay.com/download/audio/2024/05/23/audio_336d55dfa8.mp3?filename=servant-bell-ring-2-211683.mp3';
 
-  // ---- Rules (REQ-006 #1-3) ----
+  // ---- Restock rules (REQ-006 #1-3) ----
 
   function parseStock(text) {
     const digits = String(text).replace(/[^0-9]/g, '');
@@ -29,18 +33,37 @@
     return (prev === undefined || prev === 0) && now !== null && now > 0;
   }
 
-  // Abroad three-step buy flow.
-  function nextAction(step, panel) {
-    if (panel === 'confirm') return 'confirm';
-    if (panel === 'amount') return 'panelBuy';
-    return step === 0 ? 'max' : 'buy';
-  }
-
   // ---- Flight (REQ-004) ----
 
   function isOutbound(flightText) {
     return /^\s*Torn to /.test(String(flightText));
   }
+
+  // ---- Abroad (REQ-005) ----
+
+  function parseBar(text) {
+    const cash = /have \$([\d,]+)/.exec(String(text));
+    const used = /purchased (\d+) \/ (\d+)/.exec(String(text));
+    if (!cash || !used) return null;
+    return { cash: Number(cash[1].replace(/,/g, '')), free: Number(used[2]) - Number(used[1]) };
+  }
+
+  // f: { sold, stock, price, cash, free, hospital, medOut, sellPacked, sellRefused }
+  function abroadAction(f) {
+    if (!f.sold) return { act: null, text: 'not sold here' };
+    if (f.hospital && !f.medOut) {
+      if (!(f.stock > 0)) return { act: null, text: 'in hospital, waiting for restock | next click: MED OUT after restock' };
+      return { act: 'med' };
+    }
+    if (f.sellPacked && !f.sellRefused) return { act: 'sell' };
+    if (!(f.free > 0)) return { act: null, text: 'bag full' };
+    if (!(f.stock > 0)) return { act: null, text: 'out of stock | next click: BUY after restock' };
+    const amount = Math.min(f.stock, f.free, Math.floor(f.cash / f.price));
+    if (!(amount > 0)) return { act: null, text: 'not enough cash' };
+    return { act: 'buy', amount };
+  }
+
+  // ---- Inventory and replies ----
 
   function findSlots(slots, name) {
     return (Array.isArray(slots) ? slots : []).filter((s) => s && s.item && s.item.name === name);
@@ -80,7 +103,7 @@
   }
 
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { parseStock, isRestock, nextAction, isOutbound, findSlots, messageText, isTriggerKey };
+    module.exports = { parseStock, isRestock, isOutbound, parseBar, abroadAction, findSlots, messageText, isTriggerKey };
     return;
   }
 
@@ -89,6 +112,7 @@
   const BAR = '.info-msg-cont .msg';
   const FLIGHT_BAR = "section[class*='flightProgressSection___']";
   const ROWS = "[class*='stockTableWrapper___'] li";
+  const INVENTORY = "ul[aria-label^='Inventory']";
 
   const style = document.createElement('style');
   style.textContent =
@@ -101,12 +125,20 @@
   const sound = new Audio(SOUND_URL);
   sound.preload = 'auto';
 
-  let step = 0;
-  let itemId = null;
   let lastStock;
   let alerted = false;
   let bodyBackground = '';
   let busy = false;
+  let medOut = false;
+  let sellRefused = false;
+
+  function inFlight() {
+    return document.body.dataset.traveling === 'true';
+  }
+
+  function barSelector() {
+    return inFlight() ? FLIGHT_BAR : BAR;
+  }
 
   function findTargetRow() {
     return [...document.querySelectorAll(ROWS)].find(
@@ -123,22 +155,9 @@
     return cell ? parseStock(cell.textContent) : null;
   }
 
-  function resolveItemId() {
-    const form = findTargetRow()?.querySelector("form[id^='item-'][id$='-form']");
-    if (form) return (itemId = form.id.split('-')[1]);
-    const panel = [...document.querySelectorAll("[id^='item-'][id$='-buyPanel']")].find(
-      (p) => p.querySelector("[class*='confirmQuestion___'] strong")?.textContent.trim().replace(/^[\d,]+x /, '') === TARGET
-    );
-    if (panel) return (itemId = panel.id.split('-')[1]);
-    return itemId;
-  }
-
-  function inFlight() {
-    return document.body.dataset.traveling === 'true';
-  }
-
-  function barSelector() {
-    return inFlight() ? FLIGHT_BAR : BAR;
+  function readTargetPrice(li) {
+    const text = li.querySelector("[class*='displayPrice']")?.textContent.trim() || '';
+    return /^\$[\d,]+$/.test(text) ? Number(text.replace(/\D/g, '')) : null;
   }
 
   function show(text, label = TARGET) {
@@ -152,18 +171,6 @@
       bar.appendChild(status);
     }
     status.textContent = `[${label}] ${text}`;
-  }
-
-  function keepScroll(action) {
-    const x = window.scrollX;
-    const y = window.scrollY;
-    const end = performance.now() + 800;
-    action();
-    const hold = () => {
-      if (window.scrollX !== x || window.scrollY !== y) window.scrollTo(x, y);
-      if (performance.now() < end) requestAnimationFrame(hold);
-    };
-    requestAnimationFrame(hold);
   }
 
   function startAlert() {
@@ -181,72 +188,9 @@
     document.querySelector(BAR)?.classList.remove('qp-green');
   }
 
-  function waitForResult(id) {
-    const end = performance.now() + 5000;
-    const poll = () => {
-      const msg = document.querySelector(`#item-${id}-buyPanel [class*='buyResultMessage___']`);
-      if (msg) return show(`CONFIRM: ${msg.textContent.trim()} | next click: MAX`);
-      if (performance.now() < end) setTimeout(poll, 100);
-      else show('CONFIRM: no result shown | next click: MAX');
-    };
-    poll();
-  }
-
-  function runStep() {
-    const id = resolveItemId();
-    if (!id) return show('not sold here');
-
-    const panel = document.getElementById(`item-${id}-buyPanel`);
-    const yes = panel?.querySelector("[class*='confirmPanel___'] button[class*='yes___']");
-    const panelBuy = panel?.querySelector("[class*='amountPanel___'] button[type='submit']");
-    const action = nextAction(step, yes ? 'confirm' : panelBuy ? 'amount' : null);
-
-    if (action === 'confirm') {
-      keepScroll(() => yes.click());
-      step = 0;
-      clearAlert();
-      show('CONFIRM sent, waiting for result...');
-      return waitForResult(id);
-    }
-
-    if (action === 'panelBuy') {
-      if (panelBuy.disabled) return show('BUY button disabled | next click: BUY');
-      keepScroll(() => panelBuy.click());
-      step = 0;
-      return setTimeout(() => showAfterBuy(id), 150);
-    }
-
-    const form = document.getElementById(`item-${id}-form`);
-    if (!form) return show('row busy | click again later');
-    const buy = document.querySelector(`button[type='submit'][form='item-${id}-form']`);
-
-    if (action === 'max') {
-      keepScroll(() => form.querySelector('.input-money-symbol').click());
-      step = 1;
-      const next = buy?.matches("[class*='buyIconButton___']") ? 'CART' : 'BUY';
-      setTimeout(() => show(`MAX -> qty ${form.querySelector("input[placeholder='Qty']").value} | next click: ${next}`), 50);
-      return;
-    }
-
-    step = 0;
-    if (!buy || buy.disabled) return show('BUY button disabled | next click: MAX');
-    keepScroll(() => buy.click());
-    setTimeout(() => showAfterBuy(id), 150);
-  }
-
-  function showAfterBuy(id) {
-    const panel = document.getElementById(`item-${id}-buyPanel`);
-    const confirm = panel?.querySelector("[class*='confirmQuestion___']");
-    if (confirm) return show(`BUY -> ${confirm.textContent.trim()} | next click: CONFIRM`);
-    const amount = panel?.querySelector("[class*='amountPanel___']");
-    if (!amount) return show('BUY clicked, no panel | next click: MAX');
-    if (amount.contains(document.activeElement)) document.activeElement.blur();
-    show(`CART -> ${amount.querySelector("[class*='question___']").textContent.trim()} | next click: BUY`);
-  }
-
-  async function travelData(step, { method = 'GET', body } = {}) {
+  async function travelData(step, { method = 'GET', query = '', body } = {}) {
     try {
-      const res = await fetch(window.addRFC(`/page.php?sid=travelData&step=${step}`), {
+      const res = await fetch(window.addRFC(`/page.php?sid=travelData&step=${step}${query}`), {
         method,
         credentials: 'same-origin',
         headers: { 'X-Requested-With': 'XMLHttpRequest' },
@@ -262,24 +206,104 @@
     }
   }
 
+  function refreshPage() {
+    window.dispatchEvent(new Event('focus'));
+  }
+
   async function runFlight() {
-    if (busy) return;
     const label = HOSP_ITEM;
     if (!isOutbound(document.querySelector(FLIGHT_BAR)?.textContent)) {
       return show('flying to Torn | nothing to do', label);
     }
+    show('HOSP: reading bag...', label);
+    const inv = await travelData('inventory');
+    if (!inv.ok) return show(`HOSP failed: ${inv.message} | next click: HOSP`, label);
+    const held = findSlots(inv.data.slots, HOSP_ITEM);
+    if (!held.length) return show('HOSP: not in bag | nothing to do', label);
+    show('HOSP: using...', label);
+    const res = await travelData('useItem', { method: 'POST', body: { slotID: held[0].ID } });
+    if (!res.ok) return show(`HOSP failed: ${res.message} | next click: HOSP`, label);
+    const next = held.length > 1 ? `HOSP (${held.length - 1} left)` : 'nothing (none left)';
+    show(`HOSP: ${res.message} | next click: ${next}`, label);
+  }
+
+  function readAbroad() {
+    const li = findTargetRow();
+    const bar = parseBar(document.querySelector(BAR)?.textContent) || { cash: 0, free: 0 };
+    const packed = [...document.querySelectorAll(`${INVENTORY} > li button[aria-label]`)]
+      .some((b) => b.getAttribute('aria-label').startsWith(`${SELL_ITEM} slot `));
+    return {
+      sold: !!li,
+      itemId: li?.querySelector("form[id^='item-'][id$='-form']")?.id.split('-')[1],
+      stock: readTargetStock(),
+      price: li ? readTargetPrice(li) : null,
+      cash: bar.cash,
+      free: bar.free,
+      hospital: document.body.dataset.layout === 'hospital',
+      medOut,
+      sellPacked: packed,
+      sellRefused,
+    };
+  }
+
+  async function runAbroad() {
+    const f = readAbroad();
+    let step = abroadAction(f);
+
+    if (step.act === 'med') {
+      show('MED OUT: reading bag...');
+      const inv = await travelData('inventory');
+      if (!inv.ok) return show(`MED OUT failed: ${inv.message} | next click: MED OUT`);
+      const held = findSlots(inv.data.slots, MED_ITEM);
+      if (!held.length) return show(`MED OUT: no ${MED_ITEM} in bag`);
+      show('MED OUT: using...');
+      const res = await travelData('useItem', { method: 'POST', body: { slotID: held[0].ID } });
+      if (!res.ok) return show(`MED OUT failed: ${res.message} | next click: MED OUT`);
+      medOut = true;
+      refreshPage();
+      return show(`MED OUT: ${res.message} | next click: ${f.sellPacked && !sellRefused ? `SELL ${SELL_ITEM}` : 'BUY'}`);
+    }
+
+    if (step.act === 'sell') {
+      show(`SELL ${SELL_ITEM}: reading bag...`);
+      const inv = await travelData('inventory');
+      if (!inv.ok) return show(`SELL failed: ${inv.message} | next click: SELL`);
+      const held = findSlots(inv.data.slots, SELL_ITEM);
+      if (held.length) {
+        if (held[0].item.isSellable === false) {
+          sellRefused = true;
+          return show(`SELL: this shop does not buy ${SELL_ITEM} | next click: BUY`);
+        }
+        show(`SELL ${held.length}x ${SELL_ITEM}...`);
+        const res = await travelData('sellItem', { method: 'POST', body: { slotID: held[0].ID, amount: held.length } });
+        if (!res.ok) {
+          if (res.data) sellRefused = true;
+          return show(`SELL failed: ${res.message} | next click: ${sellRefused ? 'BUY' : 'SELL'}`);
+        }
+        refreshPage();
+        return show(`SELL: ${res.message} | next click: BUY`);
+      }
+      step = abroadAction({ ...f, sellPacked: false });
+    }
+
+    if (step.act === 'buy') {
+      show(`BUY ${step.amount}x: sending...`);
+      const res = await travelData('buy', { query: `&itemID=${f.itemId}&amount=${step.amount}` });
+      if (!res.ok) return show(`BUY failed: ${res.message} | next click: BUY`);
+      clearAlert();
+      refreshPage();
+      return show(`BUY ${step.amount}x: ${res.message} | next click: BUY if stock and space left`);
+    }
+
+    show(step.text);
+  }
+
+  async function trigger() {
+    if (busy) return;
     busy = true;
     try {
-      show('HOSP: reading bag...', label);
-      const inv = await travelData('inventory');
-      if (!inv.ok) return show(`HOSP failed: ${inv.message} | next click: HOSP`, label);
-      const held = findSlots(inv.data.slots, HOSP_ITEM);
-      if (!held.length) return show('HOSP: not in bag | nothing to do', label);
-      show('HOSP: using...', label);
-      const res = await travelData('useItem', { method: 'POST', body: { slotID: held[0].ID } });
-      if (!res.ok) return show(`HOSP failed: ${res.message} | next click: HOSP`, label);
-      const next = held.length > 1 ? `HOSP (${held.length - 1} left)` : 'nothing (none left)';
-      show(`HOSP: ${res.message} | next click: ${next}`, label);
+      if (inFlight()) await runFlight();
+      else await runAbroad();
     } finally {
       busy = false;
     }
@@ -291,11 +315,6 @@
 
   function hasBar() {
     return inFlight() ? !!document.querySelector(FLIGHT_BAR) : isShopShown();
-  }
-
-  function trigger() {
-    if (inFlight()) runFlight();
-    else runStep();
   }
 
   function onBarClick(event) {
