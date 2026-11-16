@@ -25,6 +25,14 @@
 - `document` 的 `keyup`，在捕獲階段監聽。
   - 攔下觸發過的那一次空白鍵的 `keyup`。
 
+## 設定
+
+- `localStorage` 鍵 `quickPurchase.settings`，值為 JSON `{ target, sell, hosp, med }`。
+  - 缺少的鍵用預設值，空字串表示跳過。
+- 設定連結 `div.qp-settings` 插在 `#travel-root` 前面，是它的兄弟節點。
+  - 不放在 React 管理的節點內。
+  - 每次 DOM 變動時檢查，不在就重新插入。
+
 ## Request
 
 動作直接送 travel bundle 用的 endpoint。
@@ -73,6 +81,7 @@
 - 訊息列加 class `qp-active`，隱藏原文字。
 - 訊息列加 class `qp-green`，綠色背景。
 - 訊息列內附加 `span.qp-status`，顯示狀態。
+- `#travel-root` 前面插入設定連結與表單 `div.qp-settings`。
 - 整頁背景改 `document.body.style.backgroundColor`。
 
 ## 選擇器穩定性

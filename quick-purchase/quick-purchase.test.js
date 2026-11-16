@@ -1,7 +1,22 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 
-const { parseStock, isRestock, isOutbound, parseBar, abroadAction, findSlots, messageText, isTriggerKey } = require('./quick-purchase.js');
+const { mergeSettings, settingsError, parseStock, isRestock, isOutbound, parseBar, abroadAction, findSlots, messageText, isTriggerKey } = require('./quick-purchase.js');
+
+// REQ-002 #1, #3, #6: stored values win, missing keys fall back to defaults, and an empty value stays empty (skip).
+test('mergeSettings fills defaults and keeps empty values', () => {
+  assert.deepEqual(mergeSettings(null), { target: 'Xanax', sell: 'Speed', hosp: 'Blood Bag : A+', med: 'Blood Bag : O+' });
+  assert.deepEqual(mergeSettings({ target: ' Plushie ', hosp: '' }), { target: 'Plushie', sell: 'Speed', hosp: '', med: 'Blood Bag : O+' });
+  assert.equal(mergeSettings({ target: 42 }).target, 'Xanax');
+});
+
+// REQ-002 #7: the sell item may not equal the target, or the next click would sell what was just bought.
+test('settingsError rejects a sell item equal to the target, ignoring case', () => {
+  assert.equal(typeof settingsError({ target: 'Xanax', sell: ' xanax' }), 'string');
+  assert.equal(settingsError({ target: 'Xanax', sell: 'Speed' }), null);
+  assert.equal(settingsError({ target: '', sell: '' }), null);
+});
+
 
 test('parseStock reads the stock cell text including the screen-reader label', () => {
   assert.equal(parseStock('9stock'), 9);
@@ -32,7 +47,7 @@ test('isRestock fires on a non-zero first reading only', () => {
   assert.equal(isRestock(undefined, null), false);
 });
 
-const BASE = { sold: true, stock: 0, price: 646899, cash: 42925112, free: 1, hospital: true, medOut: false, sellPacked: true, sellRefused: false };
+const BASE = { hasTarget: true, hasMed: true, sold: true, stock: 0, price: 646899, cash: 42925112, free: 1, hospital: true, medOut: false, sellPacked: true, sellRefused: false };
 const act = (over) => abroadAction({ ...BASE, ...over });
 
 // REQ-005 #1: in hospital, wait for the restock before using the med-out item.
@@ -59,6 +74,15 @@ test('abroadAction does nothing when the target is not sold here', () => {
 // REQ-005 #4: once the shop refuses the sell item, clicks go straight to buying.
 test('abroadAction skips the sell after a refusal', () => {
   assert.equal(act({ hospital: false, stock: 855, free: 2, sellRefused: true }).act, 'buy');
+});
+
+// REQ-002 #6: an empty target skips med out and buy, but still sells; an empty med-out item never meds out.
+test('abroadAction skips the steps whose setting is empty', () => {
+  assert.equal(act({ hasTarget: false, sold: false, stock: null }).act, null);
+  assert.match(act({ hasTarget: false, sold: false, stock: null }).text, /no target/);
+  assert.equal(act({ hasTarget: false, sold: false, hospital: false }).act, 'sell');
+  assert.match(act({ hasTarget: false, sold: false, hospital: false, sellPacked: false }).text, /no target/);
+  assert.match(act({ hasMed: false, stock: 855 }).text, /no med-out/);
 });
 
 // REQ-005 #2: buy the smallest of stock, free slots, and what the cash covers.
@@ -99,6 +123,7 @@ test('findSlots skips used slots and other items', () => {
     { ID: 4, item: { name: 'Speed' } },
   ];
   assert.deepEqual(findSlots(slots, 'Blood Bag : A+').map((s) => s.ID), [3]);
+  assert.deepEqual(findSlots(slots, 'blood bag : a+').map((s) => s.ID), [3], 'REQ-002 #5: names ignore case');
   assert.deepEqual(findSlots(slots, 'Xanax'), []);
   assert.deepEqual(findSlots(undefined, 'Blood Bag : A+'), []);
 });

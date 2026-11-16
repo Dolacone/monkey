@@ -16,11 +16,28 @@
 
   // ---- Settings (REQ-002) ----
 
-  const TARGET = 'Xanax';
-  const HOSP_ITEM = 'Blood Bag : A+';
-  const MED_ITEM = 'Blood Bag : O+';
-  const SELL_ITEM = 'Speed';
+  const DEFAULTS = { target: 'Xanax', sell: 'Speed', hosp: 'Blood Bag : A+', med: 'Blood Bag : O+' };
+  const SETTING_LABELS = { target: 'Target item', sell: 'Sell item', hosp: 'Self-hosp item', med: 'Med-out item' };
+  const STORAGE_KEY = 'quickPurchase.settings';
   const SOUND_URL = 'https://cdn.pixabay.com/download/audio/2024/05/23/audio_336d55dfa8.mp3?filename=servant-bell-ring-2-211683.mp3';
+
+  function sameName(a, b) {
+    return !!a && !!b && String(a).trim().toLowerCase() === String(b).trim().toLowerCase();
+  }
+
+  function mergeSettings(stored) {
+    const out = { ...DEFAULTS };
+    if (stored && typeof stored === 'object') {
+      for (const key of Object.keys(DEFAULTS)) {
+        if (typeof stored[key] === 'string') out[key] = stored[key].trim();
+      }
+    }
+    return out;
+  }
+
+  function settingsError(s) {
+    return sameName(s.sell, s.target) ? 'Sell item and target item must differ.' : null;
+  }
 
   // ---- Restock rules (REQ-006 #1-3) ----
 
@@ -48,14 +65,17 @@
     return { cash: Number(cash[1].replace(/,/g, '')), free: Number(used[2]) - Number(used[1]) };
   }
 
-  // f: { sold, stock, price, cash, free, hospital, medOut, sellPacked, sellRefused }
+  // f: { hasTarget, hasMed, sold, stock, price, cash, free, hospital, medOut, sellPacked, sellRefused }
   function abroadAction(f) {
-    if (!f.sold) return { act: null, text: 'not sold here' };
+    if (f.hasTarget && !f.sold) return { act: null, text: 'not sold here' };
     if (f.hospital && !f.medOut) {
+      if (!f.hasTarget) return { act: null, text: 'no target item set' };
+      if (!f.hasMed) return { act: null, text: 'no med-out item set' };
       if (!(f.stock > 0)) return { act: null, text: 'in hospital, waiting for restock | next click: MED OUT after restock' };
       return { act: 'med' };
     }
     if (f.sellPacked && !f.sellRefused) return { act: 'sell' };
+    if (!f.hasTarget) return { act: null, text: 'no target item set' };
     if (!(f.free > 0)) return { act: null, text: 'bag full' };
     if (!(f.stock > 0)) return { act: null, text: 'out of stock | next click: BUY after restock' };
     const amount = Math.min(f.stock, f.free, Math.floor(f.cash / f.price));
@@ -66,7 +86,7 @@
   // ---- Inventory and replies ----
 
   function findSlots(slots, name) {
-    return (Array.isArray(slots) ? slots : []).filter((s) => s && s.item && s.item.name === name);
+    return (Array.isArray(slots) ? slots : []).filter((s) => s && s.item && sameName(s.item.name, name));
   }
 
   function formatDuration(seconds) {
@@ -103,7 +123,7 @@
   }
 
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { parseStock, isRestock, isOutbound, parseBar, abroadAction, findSlots, messageText, isTriggerKey };
+    module.exports = { mergeSettings, settingsError, parseStock, isRestock, isOutbound, parseBar, abroadAction, findSlots, messageText, isTriggerKey };
     return;
   }
 
@@ -119,8 +139,22 @@
     '.qp-active{font-size:0 !important}' +
     '.qp-active>strong{display:none !important}' +
     '.qp-status{font-size:12px;font-weight:bold}' +
-    '.qp-green{background:#2e7d32 !important;color:#fff !important}';
+    '.qp-green{background:#2e7d32 !important;color:#fff !important}' +
+    '.qp-settings{margin:0 0 6px;font-size:12px}' +
+    '.qp-settings a{cursor:pointer;text-decoration:underline}' +
+    '.qp-settings form{display:grid;grid-template-columns:auto 1fr;gap:4px 8px;max-width:420px;margin-top:4px}' +
+    '.qp-settings input{min-width:0}';
   document.head.appendChild(style);
+
+  function loadSettings() {
+    try {
+      return mergeSettings(JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null'));
+    } catch (e) {
+      return mergeSettings(null);
+    }
+  }
+
+  let cfg = loadSettings();
 
   const sound = new Audio(SOUND_URL);
   sound.preload = 'auto';
@@ -142,7 +176,7 @@
 
   function findTargetRow() {
     return [...document.querySelectorAll(ROWS)].find(
-      (li) => li.querySelector("button[class*='itemNameButton___']")?.textContent.trim() === TARGET
+      (li) => sameName(li.querySelector("button[class*='itemNameButton___']")?.textContent, cfg.target)
     );
   }
 
@@ -160,7 +194,7 @@
     return /^\$[\d,]+$/.test(text) ? Number(text.replace(/\D/g, '')) : null;
   }
 
-  function show(text, label = TARGET) {
+  function show(text, label = cfg.target || 'Quick Purchase') {
     const bar = document.querySelector(barSelector());
     if (!bar) return;
     bar.classList.add('qp-active');
@@ -211,14 +245,15 @@
   }
 
   async function runFlight() {
-    const label = HOSP_ITEM;
+    const label = cfg.hosp || 'Self-hosp';
     if (!isOutbound(document.querySelector(FLIGHT_BAR)?.textContent)) {
       return show('flying to Torn | nothing to do', label);
     }
+    if (!cfg.hosp) return show('no self-hosp item set | nothing to do', label);
     show('HOSP: reading bag...', label);
     const inv = await travelData('inventory');
     if (!inv.ok) return show(`HOSP failed: ${inv.message} | next click: HOSP`, label);
-    const held = findSlots(inv.data.slots, HOSP_ITEM);
+    const held = findSlots(inv.data.slots, cfg.hosp);
     if (!held.length) return show('HOSP: not in bag | nothing to do', label);
     show('HOSP: using...', label);
     const res = await travelData('useItem', { method: 'POST', body: { slotID: held[0].ID } });
@@ -230,9 +265,11 @@
   function readAbroad() {
     const li = findTargetRow();
     const bar = parseBar(document.querySelector(BAR)?.textContent) || { cash: 0, free: 0 };
-    const packed = [...document.querySelectorAll(`${INVENTORY} > li button[aria-label]`)]
-      .some((b) => b.getAttribute('aria-label').startsWith(`${SELL_ITEM} slot `));
+    const packed = !!cfg.sell && [...document.querySelectorAll(`${INVENTORY} > li button[aria-label]`)]
+      .some((b) => sameName(b.getAttribute('aria-label').replace(/ slot \d+$/, ''), cfg.sell));
     return {
+      hasTarget: !!cfg.target,
+      hasMed: !!cfg.med,
       sold: !!li,
       itemId: li?.querySelector("form[id^='item-'][id$='-form']")?.id.split('-')[1],
       stock: readTargetStock(),
@@ -254,27 +291,27 @@
       show('MED OUT: reading bag...');
       const inv = await travelData('inventory');
       if (!inv.ok) return show(`MED OUT failed: ${inv.message} | next click: MED OUT`);
-      const held = findSlots(inv.data.slots, MED_ITEM);
-      if (!held.length) return show(`MED OUT: no ${MED_ITEM} in bag`);
+      const held = findSlots(inv.data.slots, cfg.med);
+      if (!held.length) return show(`MED OUT: no ${cfg.med} in bag`);
       show('MED OUT: using...');
       const res = await travelData('useItem', { method: 'POST', body: { slotID: held[0].ID } });
       if (!res.ok) return show(`MED OUT failed: ${res.message} | next click: MED OUT`);
       medOut = true;
       refreshPage();
-      return show(`MED OUT: ${res.message} | next click: ${f.sellPacked && !sellRefused ? `SELL ${SELL_ITEM}` : 'BUY'}`);
+      return show(`MED OUT: ${res.message} | next click: ${f.sellPacked && !sellRefused ? `SELL ${cfg.sell}` : 'BUY'}`);
     }
 
     if (step.act === 'sell') {
-      show(`SELL ${SELL_ITEM}: reading bag...`);
+      show(`SELL ${cfg.sell}: reading bag...`);
       const inv = await travelData('inventory');
       if (!inv.ok) return show(`SELL failed: ${inv.message} | next click: SELL`);
-      const held = findSlots(inv.data.slots, SELL_ITEM);
+      const held = findSlots(inv.data.slots, cfg.sell);
       if (held.length) {
         if (held[0].item.isSellable === false) {
           sellRefused = true;
-          return show(`SELL: this shop does not buy ${SELL_ITEM} | next click: BUY`);
+          return show(`SELL: this shop does not buy ${cfg.sell} | next click: BUY`);
         }
-        show(`SELL ${held.length}x ${SELL_ITEM}...`);
+        show(`SELL ${held.length}x ${cfg.sell}...`);
         const res = await travelData('sellItem', { method: 'POST', body: { slotID: held[0].ID, amount: held.length } });
         if (!res.ok) {
           if (res.data) sellRefused = true;
@@ -338,7 +375,56 @@
     event.stopPropagation();
   }
 
+  function renderSettings() {
+    const root = document.querySelector('#travel-root');
+    if (!root || document.querySelector('.qp-settings')) return;
+    const box = document.createElement('div');
+    box.className = 'qp-settings';
+    const link = document.createElement('a');
+    link.textContent = 'Quick Purchase settings';
+    const form = document.createElement('form');
+    form.hidden = true;
+    for (const key of Object.keys(DEFAULTS)) {
+      const label = document.createElement('label');
+      label.textContent = SETTING_LABELS[key];
+      label.htmlFor = `qp-${key}`;
+      const input = document.createElement('input');
+      input.id = `qp-${key}`;
+      input.name = key;
+      input.type = 'text';
+      input.placeholder = `empty = skip (default ${DEFAULTS[key]})`;
+      form.append(label, input);
+    }
+    const save = document.createElement('button');
+    save.type = 'submit';
+    save.textContent = 'Save';
+    const note = document.createElement('span');
+    form.append(save, note);
+    link.addEventListener('click', () => {
+      form.hidden = !form.hidden;
+      for (const key of Object.keys(DEFAULTS)) form.elements[key].value = cfg[key];
+      note.textContent = '';
+    });
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const next = mergeSettings(Object.fromEntries(Object.keys(DEFAULTS).map((k) => [k, form.elements[k].value])));
+      const error = settingsError(next);
+      if (error) return (note.textContent = error);
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      } catch (e) {
+        return (note.textContent = 'Could not save in this browser.');
+      }
+      cfg = next;
+      lastStock = undefined;
+      note.textContent = 'Saved.';
+    });
+    box.append(link, form);
+    root.parentNode.insertBefore(box, root);
+  }
+
   function onMutation() {
+    renderSettings();
     if (!document.querySelector(BAR)) return;
     if (alerted) document.querySelector(BAR).classList.add('qp-green');
     const now = readTargetStock();

@@ -1,6 +1,6 @@
 # quick-purchase.test.js
 
-Tests for the pure rules in `quick-purchase.js`: `parseStock`, `isRestock`, `isOutbound`, `parseBar`, `abroadAction`, `findSlots`, `messageText`, `isTriggerKey`.
+Tests for the pure rules in `quick-purchase.js`: `mergeSettings`, `settingsError`, `parseStock`, `isRestock`, `isOutbound`, `parseBar`, `abroadAction`, `findSlots`, `messageText`, `isTriggerKey`.
 
 - The tests load them through the script's `module.exports` branch.
 - DOM reading, clicking, requests, key suppression, color, and sound are not covered.
@@ -9,6 +9,14 @@ Tests for the pure rules in `quick-purchase.js`: `parseStock`, `isRestock`, `isO
 Run with `node --test` in this folder.
 
 ## Coverage
+
+- 設定合併（REQ-002 條件 1、3、6）：存的值優先，缺的鍵用預設值，空字串保留為空。
+  - 非字串的值改用預設值。
+- 設定檢查（REQ-002 條件 7）：賣出道具與目標商品相同時不能存，不分大小寫。
+  - 兩者皆空時可以存。
+- 留空跳過（REQ-002 條件 6）：目標商品留空時不出院、不購買，但仍賣出。
+  - 出院道具留空時不出院。
+- 名稱比對（REQ-002 條件 5）：找格子不分大小寫。
 
 - 補貨判斷（REQ-006 條件 1）：stock 從 0 變成大於 0 才觸發。
 - 不觸發（REQ-006 條件 2）：以下情況都不觸發。
