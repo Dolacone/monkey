@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn: Quick Purchase
 // @namespace    quick-purchase
-// @version      1.4.1
+// @version      1.4.2
 // @description  Alert when the target abroad item restocks; each click on the travel message bar (or q / space) packs at the travel agency, self-hosps in flight, and abroad meds out, sells the packed item, and buys the target
 // @author       Dolacone
 // @match        https://www.torn.com/page.php?sid=travel*
@@ -113,7 +113,7 @@
     '.qp-status{font-size:12px;font-weight:bold}' +
     '.qp-green{background:#2e7d32 !important;color:#fff !important}' +
     '.qp-settings{margin:0 0 6px;font-size:12px}' +
-    '.qp-settings a{cursor:pointer;text-decoration:underline}' +
+    '.qp-settings [hidden]{display:none !important}' +
     '.qp-settings form{display:grid;grid-template-columns:auto 1fr;gap:4px 8px;max-width:420px;margin-top:4px}' +
     '.qp-bar{margin:0 0 6px;padding:6px 8px;border:1px solid #888;border-radius:4px;cursor:pointer;font-size:12px}';
   document.head.appendChild(style);
@@ -310,10 +310,9 @@
     if (!root || document.querySelector('.qp-settings')) return;
     const box = document.createElement('div');
     box.className = 'qp-settings';
-    const link = document.createElement('a');
-    link.textContent = 'Quick Purchase settings';
+    const title = document.createElement('div');
+    title.textContent = 'Quick Purchase settings';
     const form = document.createElement('form');
-    form.hidden = true;
     for (const key of Object.keys(DEFAULTS)) {
       const label = document.createElement('label');
       label.textContent = LABELS[key];
@@ -325,20 +324,16 @@
       form.append(label, input);
     }
     const fill = () => { for (const key of Object.keys(DEFAULTS)) form.elements[key].value = cfg[key]; };
+    fill();
     const save = document.createElement('button');
     save.type = 'submit';
     save.className = 'torn-btn';
     save.textContent = 'Save';
     const load = document.createElement('button');
     load.type = 'button';
-    load.className = 'torn-btn';
+    load.className = 'torn-btn qp-load';
     load.textContent = 'Load package';
     form.append(save, load);
-    link.addEventListener('click', () => {
-      form.hidden = !form.hidden;
-      load.hidden = !atAgency();
-      fill();
-    });
     form.addEventListener('submit', (event) => {
       event.preventDefault();
       saveSettings(Object.fromEntries(Object.keys(DEFAULTS).map((k) => [k, form.elements[k].value.trim()])));
@@ -348,13 +343,16 @@
       saveSettings(packageSettings([...new Set(names)], cfg));
       fill();
     });
-    box.append(link, form);
+    box.append(title, form);
     root.before(box);
   }
 
-  function renderAgencyBar() {
+  function renderAgency() {
+    const agency = atAgency();
+    const load = document.querySelector('.qp-load');
+    if (load) load.hidden = !agency;
     const bar = document.querySelector(AGENCY_BAR);
-    if (!atAgency()) return bar?.remove();
+    if (!agency) return bar?.remove();
     const box = document.querySelector('.qp-settings');
     if (bar || !box) return;
     const el = document.createElement('div');
@@ -365,7 +363,7 @@
 
   function onMutation() {
     renderSettings();
-    renderAgencyBar();
+    renderAgency();
     const bar = document.querySelector(BAR);
     if (!bar) return;
     if (alerted) bar.classList.add('qp-green');
