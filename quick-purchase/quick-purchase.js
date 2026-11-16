@@ -2,7 +2,7 @@
 // @name         Torn: Quick Purchase
 // @namespace    quick-purchase
 // @version      1.2.0
-// @description  Alert when the target abroad item restocks; each click on the travel message bar (or q / space) self-hosps in flight, and abroad meds out, sells the packed item, and buys the target
+// @description  Alert when the target abroad item restocks; each click on the travel message bar (or q / space) packs at the travel agency, self-hosps in flight, and abroad meds out, sells the packed item, and buys the target
 // @author       Dolacone
 // @match        https://www.torn.com/page.php?sid=travel*
 // @downloadURL  https://raw.githubusercontent.com/Dolacone/monkey/refs/heads/master/quick-purchase/quick-purchase.js
@@ -83,6 +83,31 @@
     return { act: 'buy', amount };
   }
 
+  // ---- Travel agency (REQ-003) ----
+
+  // f: { hosp, med, sell, carried: [names], free, skip: { hosp, med, sell } }
+  function packAction(f) {
+    const has = (name) => f.carried.some((n) => sameName(n, name));
+    if (f.hosp && !f.skip.hosp && !has(f.hosp)) return { act: 'pack', role: 'hosp', name: f.hosp };
+    if (f.med && !f.skip.med && !has(f.med)) return { act: 'pack', role: 'med', name: f.med };
+    if (f.sell && !f.skip.sell && f.free > 0) return { act: 'fill', role: 'sell', name: f.sell };
+    return { act: null, text: 'packed | ready to fly' };
+  }
+
+  // searchItem entries: { id, name, faction, armouryID, disabled }
+  function pickOwned(list, name, factionFirst) {
+    const named = (Array.isArray(list) ? list : []).filter((e) => e && !e.disabled && sameName(e.name, name));
+    if (!factionFirst) return named.find((e) => !e.faction) || null;
+    return named.find((e) => e.faction) || named[0] || null;
+  }
+
+  function packBody(hit) {
+    const body = { itemID: hit.id };
+    if (hit.faction) body.factionItem = '1';
+    if (hit.armouryID) body.armouryID = hit.armouryID;
+    return body;
+  }
+
   // ---- Inventory and replies ----
 
   function findSlots(slots, name) {
@@ -123,7 +148,7 @@
   }
 
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { mergeSettings, settingsError, parseStock, isRestock, isOutbound, parseBar, abroadAction, findSlots, messageText, isTriggerKey };
+    module.exports = { mergeSettings, settingsError, parseStock, isRestock, isOutbound, parseBar, abroadAction, packAction, pickOwned, packBody, findSlots, messageText, isTriggerKey };
     return;
   }
 
@@ -133,6 +158,7 @@
   const FLIGHT_BAR = "section[class*='flightProgressSection___']";
   const ROWS = "[class*='stockTableWrapper___'] li";
   const INVENTORY = "ul[aria-label^='Inventory']";
+  const AGENCY_BAR = '.qp-bar';
 
   const style = document.createElement('style');
   style.textContent =
@@ -143,7 +169,8 @@
     '.qp-settings{margin:0 0 6px;font-size:12px}' +
     '.qp-settings a{cursor:pointer;text-decoration:underline}' +
     '.qp-settings form{display:grid;grid-template-columns:auto 1fr;gap:4px 8px;max-width:420px;margin-top:4px}' +
-    '.qp-settings input{min-width:0}';
+    '.qp-settings input{min-width:0}' +
+    '.qp-bar{margin:0 0 6px;padding:6px 8px;border:1px solid #888;border-radius:4px;cursor:pointer;font-size:12px}';
   document.head.appendChild(style);
 
   function loadSettings() {
@@ -165,13 +192,19 @@
   let busy = false;
   let medOut = false;
   let sellRefused = false;
+  const packSkip = { hosp: false, med: false, sell: false };
 
   function inFlight() {
     return document.body.dataset.traveling === 'true';
   }
 
+  function atAgency() {
+    return !inFlight() && document.body.dataset.country === 'torn' && !!document.querySelector(INVENTORY);
+  }
+
   function barSelector() {
-    return inFlight() ? FLIGHT_BAR : BAR;
+    if (inFlight()) return FLIGHT_BAR;
+    return atAgency() ? AGENCY_BAR : BAR;
   }
 
   function findTargetRow() {
@@ -222,13 +255,20 @@
     document.querySelector(BAR)?.classList.remove('qp-green');
   }
 
-  async function travelData(step, { method = 'GET', query = '', body } = {}) {
+  async function travelData(step, { method = 'GET', query = '', body, form } = {}) {
+    let payload;
+    if (form) {
+      payload = new FormData();
+      for (const [k, v] of Object.entries(form)) payload.set(k, v);
+    } else if (body !== undefined) {
+      payload = JSON.stringify(body);
+    }
     try {
       const res = await fetch(window.addRFC(`/page.php?sid=travelData&step=${step}${query}`), {
         method,
         credentials: 'same-origin',
         headers: { 'X-Requested-With': 'XMLHttpRequest' },
-        body: body === undefined ? undefined : JSON.stringify(body),
+        body: payload,
       });
       let data = null;
       try { data = await res.json(); } catch (e) { /* non-JSON reply */ }
@@ -335,11 +375,43 @@
     show(step.text);
   }
 
+  async function runAgency() {
+    show('PACK: reading bag...', 'Pack');
+    const inv = await travelData('inventory');
+    if (!inv.ok) return show(`PACK failed: ${inv.message} | next click: PACK`, 'Pack');
+    const slots = Array.isArray(inv.data.slots) ? inv.data.slots : [];
+    const step = packAction({
+      hosp: cfg.hosp,
+      med: cfg.med,
+      sell: cfg.sell,
+      carried: slots.filter((s) => s && s.item).map((s) => s.item.name),
+      free: slots.filter((s) => s && !s.item).length,
+      skip: packSkip,
+    });
+    if (!step.act) return show(step.text, 'Pack');
+
+    show(`PACK ${step.name}: searching...`, 'Pack');
+    const found = await travelData('searchItem', { method: 'POST', form: { q: step.name } });
+    if (!found.ok) return show(`PACK failed: ${found.message} | next click: PACK`, 'Pack');
+    const hit = pickOwned(found.data.list, step.name, step.act === 'pack');
+    if (!hit) {
+      packSkip[step.role] = true;
+      return show(`PACK: no ${step.name} owned, skipped | next click: PACK`, 'Pack');
+    }
+    const res = step.act === 'pack'
+      ? await travelData('addSlotItem', { method: 'POST', body: packBody(hit) })
+      : await travelData('fillSlotItems', { method: 'POST', body: { itemID: hit.id } });
+    if (!res.ok) return show(`PACK failed: ${res.message} | next click: PACK`, 'Pack');
+    refreshPage();
+    show(`PACK: ${res.message}${hit.faction ? ' (faction)' : ''} | next click: PACK`, 'Pack');
+  }
+
   async function trigger() {
     if (busy) return;
     busy = true;
     try {
       if (inFlight()) await runFlight();
+      else if (atAgency()) await runAgency();
       else await runAbroad();
     } finally {
       busy = false;
@@ -351,7 +423,9 @@
   }
 
   function hasBar() {
-    return inFlight() ? !!document.querySelector(FLIGHT_BAR) : isShopShown();
+    if (inFlight()) return !!document.querySelector(FLIGHT_BAR);
+    if (atAgency()) return !!document.querySelector(AGENCY_BAR);
+    return isShopShown();
   }
 
   function onBarClick(event) {
@@ -423,8 +497,20 @@
     root.parentNode.insertBefore(box, root);
   }
 
+  function renderAgencyBar() {
+    const bar = document.querySelector(AGENCY_BAR);
+    if (!atAgency()) return bar?.remove();
+    const box = document.querySelector('.qp-settings');
+    if (bar || !box) return;
+    const el = document.createElement('div');
+    el.className = 'qp-bar';
+    el.textContent = 'Quick Purchase: click (or q / space) to pack the next item';
+    box.after(el);
+  }
+
   function onMutation() {
     renderSettings();
+    renderAgencyBar();
     if (!document.querySelector(BAR)) return;
     if (alerted) document.querySelector(BAR).classList.add('qp-green');
     const now = readTargetStock();

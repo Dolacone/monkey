@@ -6,8 +6,8 @@
   - 飛行中：`body[data-traveling="true"]`，訊息列是 `section[class*='flightProgressSection___']`。
   - 海外：頁面同時有訊息列 `.info-msg-cont .msg` 與商店列表時動作。
     - 住院中兩者仍在頁面上。
-  - 在 Torn 城內，這個網址是 Travel Agency，沒有訊息列。
-  - 沒有訊息列時，腳本不做任何事。
+  - 旅行社：`body[data-country="torn"]`、不在飛行中、頁面有背包面板。
+    - 頁面沒有訊息列，腳本在設定連結下方加 `div.qp-bar` 當訊息列。
 
 ## 進入點
 
@@ -42,6 +42,9 @@
 | 讀背包 | `GET step=inventory` |
 | 使用道具 | `POST step=useItem`，body `{"slotID": <ID>}` |
 | 賣出 | `POST step=sellItem`，body `{"slotID": <ID>, "amount": <n>}` |
+| 查擁有的道具 | `POST step=searchItem`，`FormData` `q=<名稱>` |
+| 打包一個 | `POST step=addSlotItem`，body `{"itemID": <道具 ID>}`，派系的加 `"factionItem": "1"` |
+| 填滿空格 | `POST step=fillSlotItems`，body `{"itemID": <道具 ID>}` |
 | 購買 | `GET step=buy&itemID=<ID>&amount=<n>` |
 
 - 路徑：`/page.php?sid=travelData&step=...`。
@@ -51,6 +54,9 @@
   - 每格 `{ ID, item, source, action }`。
   - 用掉的格子保留在陣列中，`item` 為 `null`。
   - `item.isSellable` 在會收購該道具的國家才是 `true`。
+- `step=searchItem` 回傳 `list`，每項 `{ id, name, faction, armouryID, quantity, disabled }`。
+  - 自己的和派系的同一道具是兩筆，以 `faction` 區分。
+- `step=fillSlotItems` 的回應沒有 `success`，只有 `message` 與 `slotFillOrder`。
 - 回應 `success === false` 或帶 `error` 視為失敗。
 - 回應的 `message` 是 HTML。
   - `<span data-time="<秒>">` 換成時長，其餘標籤移除。
@@ -82,6 +88,7 @@
 - 訊息列加 class `qp-green`，綠色背景。
 - 訊息列內附加 `span.qp-status`，顯示狀態。
 - `#travel-root` 前面插入設定連結與表單 `div.qp-settings`。
+- 旅行社時，在 `div.qp-settings` 後面插入 `div.qp-bar`，離開旅行社時移除。
 - 整頁背景改 `document.body.style.backgroundColor`。
 
 ## 選擇器穩定性

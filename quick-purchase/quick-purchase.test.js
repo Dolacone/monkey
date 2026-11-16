@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 
-const { mergeSettings, settingsError, parseStock, isRestock, isOutbound, parseBar, abroadAction, findSlots, messageText, isTriggerKey } = require('./quick-purchase.js');
+const { mergeSettings, settingsError, parseStock, isRestock, isOutbound, parseBar, abroadAction, packAction, pickOwned, packBody, findSlots, messageText, isTriggerKey } = require('./quick-purchase.js');
 
 // REQ-002 #1, #3, #6: stored values win, missing keys fall back to defaults, and an empty value stays empty (skip).
 test('mergeSettings fills defaults and keeps empty values', () => {
@@ -105,6 +105,50 @@ test('abroadAction explains bag full, no stock, and no cash', () => {
 test('parseBar reads cash and free slots from the message bar', () => {
   assert.deepEqual(parseBar('You are in Japan and have $42,925,112. You have purchased 37 / 38 items so far.'), { cash: 42925112, free: 1 });
   assert.equal(parseBar('Torn to Japan.'), null);
+});
+
+const PACK = { hosp: 'Blood Bag : A+', med: 'Blood Bag : O+', sell: 'Speed', carried: [], free: 38, skip: {} };
+const pack = (over) => packAction({ ...PACK, ...over });
+
+// REQ-003 #1: one item per click, in order self-hosp, med-out, then fill the rest with the sell item.
+test('packAction packs self-hosp, then med-out, then fills', () => {
+  assert.deepEqual(pack({}), { act: 'pack', role: 'hosp', name: 'Blood Bag : A+' });
+  assert.equal(pack({ carried: ['Blood Bag : A+'], free: 37 }).role, 'med');
+  assert.equal(pack({ carried: ['blood bag : a+', 'Blood Bag : O+'], free: 36 }).act, 'fill');
+  assert.deepEqual(pack({ carried: ['Blood Bag : A+', 'Blood Bag : O+'], free: 0 }), { act: null, text: 'packed | ready to fly' });
+});
+
+// REQ-003 #4 and REQ-002 #6: a skipped or empty item moves on to the next step instead of blocking the trip.
+test('packAction moves past skipped and empty items', () => {
+  assert.equal(pack({ skip: { hosp: true } }).role, 'med');
+  assert.equal(pack({ hosp: '', med: '' }).act, 'fill');
+  assert.equal(pack({ skip: { hosp: true, med: true, sell: true } }).act, null);
+});
+
+const OWNED = [
+  { id: 738, name: 'Blood Bag : O+', faction: false, armouryID: null, disabled: false },
+  { id: 738, name: 'Blood Bag : O+', faction: true, armouryID: null, disabled: false },
+  { id: 204, name: 'Speed', faction: true, armouryID: null, disabled: false },
+  { id: 732, name: 'Blood Bag : A+', faction: true, armouryID: null, disabled: true },
+];
+
+// REQ-003 #2: self-hosp and med-out items take the faction copy when both exist.
+test('pickOwned prefers the faction copy for self-hosp and med-out', () => {
+  assert.equal(pickOwned(OWNED, 'blood bag : o+', true).faction, true);
+  assert.equal(pickOwned(OWNED.filter((e) => !e.faction), 'Blood Bag : O+', true).faction, false);
+  assert.equal(pickOwned(OWNED, 'Blood Bag : A+', true), null, 'disabled entries are not owned');
+});
+
+// REQ-003 #3: filling uses personal copies only; a faction-only sell item counts as not owned.
+test('pickOwned fills with personal copies only', () => {
+  assert.equal(pickOwned(OWNED, 'Speed', false), null);
+  assert.equal(pickOwned(OWNED, 'Blood Bag : O+', false).faction, false);
+});
+
+// REQ-003 #2: the add request marks faction copies the way the native Add button does.
+test('packBody matches the native addSlotItem body', () => {
+  assert.deepEqual(packBody({ id: 732, faction: true, armouryID: null }), { itemID: 732, factionItem: '1' });
+  assert.deepEqual(packBody({ id: 738, faction: false, armouryID: null }), { itemID: 738 });
 });
 
 // REQ-004 #1, #3: only the flight away from Torn self-hosps; the flight home does nothing.

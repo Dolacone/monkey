@@ -1,6 +1,6 @@
 # quick-purchase.test.js
 
-Tests for the pure rules in `quick-purchase.js`: `mergeSettings`, `settingsError`, `parseStock`, `isRestock`, `isOutbound`, `parseBar`, `abroadAction`, `findSlots`, `messageText`, `isTriggerKey`.
+Tests for the pure rules in `quick-purchase.js`: `mergeSettings`, `settingsError`, `parseStock`, `isRestock`, `isOutbound`, `parseBar`, `abroadAction`, `packAction`, `pickOwned`, `packBody`, `findSlots`, `messageText`, `isTriggerKey`.
 
 - The tests load them through the script's `module.exports` branch.
 - DOM reading, clicking, requests, key suppression, color, and sound are not covered.
@@ -17,6 +17,13 @@ Run with `node --test` in this folder.
 - 留空跳過（REQ-002 條件 6）：目標商品留空時不出院、不購買，但仍賣出。
   - 出院道具留空時不出院。
 - 名稱比對（REQ-002 條件 5）：找格子不分大小寫。
+- 打包順序（REQ-003 條件 1）：入院道具、出院道具、填滿賣出道具，一次一樣。
+  - 都完成時顯示已打包。
+- 跳過（REQ-003 條件 4、REQ-002 條件 6）：被跳過或留空的道具改做下一步。
+- 派系優先（REQ-003 條件 2）：入院與出院道具兩種都有時選派系的。
+  - `disabled` 的項目視為沒有。
+- 填滿只用自己的（REQ-003 條件 3）：只有派系的賣出道具時視為沒有。
+- 打包 body（REQ-003 條件 2）：與原生 Add 按鈕送出的 body 相同。
 
 - 補貨判斷（REQ-006 條件 1）：stock 從 0 變成大於 0 才觸發。
 - 不觸發（REQ-006 條件 2）：以下情況都不觸發。

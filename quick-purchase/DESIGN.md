@@ -54,6 +54,20 @@
 - 提醒尚未解除時再次觸發，不覆寫記下的原本背景色。
 - 購買成功後，背景恢復成載入時的顏色。
 
+## REQ-003 — 旅行社直接送 request
+
+- 打包與填滿直接送 request，格式取自頁面原生 Add 與 Fill 按鈕實際送出的內容。
+  - 派系 A+：`addSlotItem {"itemID":732,"factionItem":"1"}`。
+  - 自己的 O+：`addSlotItem {"itemID":738}`。
+  - Speed：`fillSlotItems {"itemID":204}`，回應 `Added x36 Speed.`。
+- 旅行社判斷讀 `body[data-country="torn"]` 加上背包面板存在。
+- 已打包的道具與空格讀 `step=inventory`。
+  - 空格 = `item: null` 的格子數。
+- 擁有的道具讀 `step=searchItem`，不需要 API key。
+- 頁面沒有訊息列，腳本自己插一條在 `#travel-root` 前面。
+  - 插在 React 管理的節點之外。
+- 跳過的步驟記在記憶體，重新載入頁面後清掉。
+
 ## REQ-004 — 飛行中直接送 request
 
 - 飛行中的背包沒有頁面上的單鍵使用按鈕。
@@ -92,17 +106,19 @@
 - 自動測試：見 `quick-purchase.test.md`。
   - REQ-001 條件 5-8，條件 12、13 的文字轉換。
   - REQ-002 條件 1、3、5、6、7 的設定合併、名稱比對、留空跳過、存檔檢查。
+  - REQ-003 條件 1-4 的打包順序、跳過、派系優先、打包 body。
   - REQ-004 條件 1-3 的判斷規則。
   - REQ-005 條件 1-4 的判斷順序、購買數量、訊息列解析。
   - REQ-006 條件 1-3。
 - 手動檢查：
+  - REQ-003 的 request 格式：使用者在旅行社以原生 Add、Fill 打包，頁面上的 fetch 監聽器記錄 body 與回應。
   - REQ-004 條件 1 的 request：使用者在飛往日本途中，以 console 送出相同的 `step=useItem`，回應 `success: true`，`body[data-layout]` 變成 `"hospital"`。
   - 日本住院中讀 DOM：訊息列與商店列表仍在，`Speed` 的 `isSellable` 為 `true`，訊息列 `purchased 37 / 38` 計入帶出國的道具。
   - REQ-006 條件 4 的訊息列變綠：以 Stingray Plushie 庫存變動實測。
 - 尚未檢查：
   - 安裝成 Tampermonkey 腳本後的整體流程。
   - 設定面板的顯示與存檔。
-  - REQ-003 尚未實作。
+  - 旅行社點擊訊息列打包。
   - `step=sellItem` 與 `step=buy` 的實際回應。
   - 出院道具在醫療冷卻約 3 小時 48 分時能否使用。
   - 出院後 `body[data-layout]` 是否即時變回。
