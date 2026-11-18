@@ -44,7 +44,7 @@
 | `/api/ui-prefs` | GET | 讀 `prefs.dp_plan_alert_lead` |
 | `/api/shell` | GET | 讀 `session.playerId` |
 | `/api/members/<playerId>/bars` | GET | 讀 `cooldowns.drug`（秒） |
-| `/api/foreign-stock/my-travel` | GET | 讀 `traveling`、`destination.name`、`arrivalAt` |
+| `/api/foreign-stock/my-travel` | GET | 讀 `traveling`、`destination.name`、`arrivalAt`、`abroad`、`abroadCode`、`abroadName` |
 | `/api/travel/checkpoints` | GET | 讀 `ocReadyAt`（毫秒） |
 
 - 只有 `source` 為 `plan`、而且有 `targetAt` 的提醒算 plan DM。

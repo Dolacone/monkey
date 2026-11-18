@@ -47,12 +47,14 @@ test('destOf shows the country abbreviation', () => {
   assert.equal(destOf('haw'), 'HAW');
 });
 
-// REQ-002 #17: the header shows where the player is heading and when, or in Torn.
-test('statusText shows the flight arrival, or in Torn when not flying', () => {
-  assert.equal(statusText({ traveling: true, name: 'Torn', arrivalAt: at(11, 12) }), 'Torn at 11:12');
-  assert.equal(statusText({ traveling: true, name: 'Hawaii', arrivalAt: at(12, 30) }), 'Hawaii at 12:30');
-  assert.equal(statusText({ traveling: false, name: '', arrivalAt: undefined }), 'in Torn');
-  assert.equal(statusText(null), '');
+// REQ-002 #17: the header shows the flight arrival, the latest return when abroad, or in Torn.
+test('statusText shows the flight arrival, the latest return when abroad, or in Torn', () => {
+  assert.equal(statusText({ traveling: true, name: 'Torn', arrivalAt: at(11, 12) }, 'wlt', at(10, 0)), 'Torn at 11:12');
+  assert.equal(statusText({ traveling: true, name: 'Hawaii', arrivalAt: at(12, 30) }, 'wlt', at(11, 30)), 'Hawaii at 12:30');
+  assert.equal(statusText({ traveling: false, abroad: true, name: 'Hawaii', code: 'haw' }, 'wlt', at(14, 25)), 'in Hawaii (return at 15:28)');
+  assert.equal(statusText({ traveling: false, abroad: true, name: 'Japan', code: 'jap' }, 'airstrip', at(14, 25)), 'in Japan (return at 16:55)');
+  assert.equal(statusText({ traveling: false, abroad: false, name: '' }, 'wlt', at(14, 25)), 'in Torn');
+  assert.equal(statusText(null, 'wlt', at(14, 25)), '');
 });
 
 // REQ-007 #3, #4 (and REQ-005 #3, #4): the line goes after the last row whose BUY is not later than the time.

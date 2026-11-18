@@ -19,5 +19,6 @@ Run with `node --test` in this folder.
 - `inFlight`（REQ-007 條件 6）：OC 時間在 LEAVE（含）到 BACK（不含）之間才標色。
 - `statusText`（REQ-002 條件 17）：
   - 飛行中顯示目的地和抵達時間，例如 `Torn at 11:12`。
-  - 不在飛行中顯示 `in Torn`。
+  - 人在國外顯示所在國家和最晚回程時間：Hawaii 的 WLT 在 14:25 出發顯示 `return at 15:28`，Japan 的 airstrip 顯示 `16:55`。
+  - 人在 Torn 顯示 `in Torn`。
   - 還沒讀到飛行狀態時不顯示。

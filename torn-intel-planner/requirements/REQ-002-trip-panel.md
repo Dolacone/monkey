@@ -37,7 +37,9 @@
 16. 沒有睡眠時段時，列出未來 24 小時的航班。
 17. header 顯示目前狀態。
    - 飛行中時，顯示目的地和抵達時間，例如 `Torn at 11:12`、`Hawaii at 12:30`。
-   - 不在飛行中時，顯示 `in Torn`。
+   - 人在國外、不在飛行中時，顯示所在國家和現在出發回 Torn 的最晚抵達時間，例如 `in Hawaii (return at 15:28)`。
+     - 飛行時間取 torn-intel 飛行時間表中，Departure Planner 所選機票在該國的時間，這是 Torn 浮動區間的最大值。
+   - 人在 Torn 時，顯示 `in Torn`。
 18. 範圍之後的航班不列出，但仍保留在網站的 24 小時計畫中。
 19. footer 只計算範圍內已勾選的趟數和總利潤。
 20. 列表在範圍內沒有航班時，顯示 `No flight fits before HH:MM` 或 `No flight fits in the next 24h`。

@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Torn Intel planner priority
-// @version      1.1.2
+// @version      1.1.3
 // @match        https://torn-intel.com/*
 // @downloadURL  https://raw.githubusercontent.com/Dolacone/monkey/refs/heads/master/torn-intel-planner/torn-intel-priority.user.js
 // @updateURL    https://raw.githubusercontent.com/Dolacone/monkey/refs/heads/master/torn-intel-planner/torn-intel-priority.user.js
@@ -21,6 +21,20 @@
   const CHECKPOINTS_URL = "/api/travel/checkpoints";
   const DM_KINDS = ["leave", "restock"];
   const COUNTRY_ABBR = { mex: "MEX", cay: "CAY", can: "CAN", haw: "HAW", uni: "UK", arg: "ARG", swi: "SWI", jap: "JPN", chi: "CHN", uae: "UAE", sou: "SA" };
+  // One-way flight seconds per ticket, copied from torn-intel's country table; the top of Torn's flight time range.
+  const FLIGHT_SEC = {
+    mex: { standard: 1500, airstrip: 1020, wlt: 720, bct: 480 },
+    haw: { standard: 7620, airstrip: 5340, wlt: 3780, bct: 2280 },
+    sou: { standard: 16860, airstrip: 11820, wlt: 8460, bct: 5040 },
+    jap: { standard: 12780, airstrip: 9000, wlt: 6420, bct: 3840 },
+    chi: { standard: 13740, airstrip: 9600, wlt: 6900, bct: 4080 },
+    arg: { standard: 9480, airstrip: 6660, wlt: 4740, bct: 2820 },
+    swi: { standard: 9960, airstrip: 7020, wlt: 4980, bct: 3000 },
+    can: { standard: 2340, airstrip: 1620, wlt: 1140, bct: 660 },
+    uni: { standard: 9060, airstrip: 6300, wlt: 4560, bct: 2700 },
+    uae: { standard: 15420, airstrip: 10800, wlt: 7680, bct: 4620 },
+    cay: { standard: 1980, airstrip: 1440, wlt: 1020, bct: 600 },
+  };
 
   // Rules
 
@@ -31,7 +45,13 @@
   const destOf = (country) => COUNTRY_ABBR[country] ?? country.toUpperCase();
   const hm = (ms) => new Date(ms).toTimeString().slice(0, 5);
   const money = (v) => (Math.abs(v) >= 1e6 ? `$${(v / 1e6).toFixed(1)}M` : `$${Math.round(v / 1e3)}k`);
-  const statusText = (travel) => (travel === null ? "" : travel.traveling ? `${travel.name} at ${hm(travel.arrivalAt)}` : "in Torn");
+  const statusText = (travel, ticket, now) => {
+    if (travel === null) return "";
+    if (travel.traveling) return `${travel.name} at ${hm(travel.arrivalAt)}`;
+    if (!travel.abroad) return "in Torn";
+    const sec = FLIGHT_SEC[travel.code]?.[ticket];
+    return sec ? `in ${travel.name} (return at ${hm(now + 1000 * sec)})` : `in ${travel.name}`;
+  };
   // A time line goes after the last row whose buy time is at or before it; -1 when there is no time.
   const lineIndex = (rows, at) => {
     if (at === null) return -1;
@@ -288,7 +308,13 @@
       const res = await fetch(TRAVEL_URL);
       if (res.ok) {
         const travel = await res.json();
-        state.travel = { traveling: !!travel.traveling, name: travel.destination?.name ?? "", arrivalAt: travel.arrivalAt };
+        state.travel = {
+          traveling: !!travel.traveling,
+          abroad: !travel.traveling && !!travel.abroad,
+          name: (travel.traveling ? travel.destination?.name : travel.abroadName) ?? "",
+          code: travel.abroadCode ?? null,
+          arrivalAt: travel.arrivalAt,
+        };
       }
     } catch {}
     render();
@@ -454,7 +480,7 @@
     const total = listed.reduce((sum, t) => sum + t.profit, 0);
     return `<div class="panel${state.collapsed ? " collapsed" : ""}">
       <header>
-        <span class="title">Trips <span class="mode">${statusText(state.travel)}</span></span>
+        <span class="title">Trips <span class="mode">${statusText(state.travel, view.feasible[0]?.ticket ?? "airstrip", Date.now())}</span></span>
         <span class="mode">${manual ? "manual" : "priority"}</span>
         <button data-act="auto"${manual ? "" : " disabled"}>Auto</button>
         <button data-act="collapse">${state.collapsed ? "+" : "-"}</button>

@@ -26,8 +26,12 @@ Module ids, request formats, and stored keys are in `torn-intel-priority.user.md
 ## REQ-002 — header 狀態
 
 - 狀態讀自 `/api/foreign-stock/my-travel`，每 120 秒更新一次。
-- 不在飛行中時，回應只有 `traveling: false` 和 `lastAction`，沒有所在地。
-  - 人在國外、不在飛行中時，header 也顯示 `in Torn`。
+- 人在 Torn 時，回應只有 `traveling: false` 和 `lastAction`。
+- 人在國外時，回應有 `abroad: true`、`abroadCode`、`abroadName`。
+- 最晚回程時間是現在時間加上 `FLIGHT_SEC[abroadCode][ticket]`。
+  - `FLIGHT_SEC` 抄自 torn-intel 的國家表，網站改表時要同步。
+  - `ticket` 取候選航班的 `ticket`，也就是 Departure Planner 所選的機票。
+  - header 每 30 秒重繪，回程時間跟著現在時間更新。
 
 ## 測試範圍
 
