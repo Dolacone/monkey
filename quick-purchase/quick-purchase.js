@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn: Quick Purchase
 // @namespace    quick-purchase
-// @version      1.4.3
+// @version      1.5.0
 // @description  Alert when any target abroad item restocks; each click on the travel message bar (or q / space) packs at the travel agency, self-hosps in flight, and abroad meds out, sells the packed item, and buys the targets in order
 // @author       Dolacone
 // @match        https://www.torn.com/page.php?sid=travel*
@@ -16,7 +16,7 @@
 
   // ---- Settings (REQ-002) ----
 
-  const DEFAULTS = { target: 'Xanax', sell: 'Vicodin', hosp: 'Blood Bag : A+', med: 'Blood Bag : O+' };
+  const DEFAULTS = { target: 'Xanax, Shark Fin, Turtle Shell', sell: 'Vicodin', hosp: 'Blood Bag : A+', med: 'Blood Bag : O+' };
   const LABELS = { target: 'Target item', sell: 'Sell item', hosp: 'Self-hosp item', med: 'Med-out item' };
   const STORAGE_KEY = 'quickPurchase.settings';
   const SOUND_URL = 'https://cdn.pixabay.com/download/audio/2024/05/23/audio_336d55dfa8.mp3?filename=servant-bell-ring-2-211683.mp3';
