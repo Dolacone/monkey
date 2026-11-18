@@ -19,7 +19,7 @@
   - 替換成功的項目以 `<模組 id>.<export 名稱>` 加入 `window.__tiPriority.patched`。
 - 網站呼叫排程函式、而且候選中有優先組合航班時，腳本重算計畫，並在下一個 animation frame 重繪面板。
 - `setInterval` 每 30 秒重繪面板。
-- `setInterval` 每 120 秒重新讀取 DM 狀態、藥物冷卻和飛行狀態。
+- `setInterval` 每 120 秒重新讀取 DM 狀態、藥物冷卻、OC 時間和飛行狀態。
 - 每次排程時，重新讀取 `localStorage` 的 `uipref_dp_favorites` 作為優先組合。
 - 面板的 shadow root 監聽 `change`（勾選框）和 `click`（按鈕）。
 
@@ -45,6 +45,7 @@
 | `/api/shell` | GET | 讀 `session.playerId` |
 | `/api/members/<playerId>/bars` | GET | 讀 `cooldowns.drug`（秒） |
 | `/api/foreign-stock/my-travel` | GET | 讀 `traveling`、`destination.name`、`arrivalAt` |
+| `/api/travel/checkpoints` | GET | 讀 `ocReadyAt`（毫秒） |
 
 - 只有 `source` 為 `plan`、而且有 `targetAt` 的提醒算 plan DM。
 - `plan-alerts` 每次 POST 都會取代同一種的所有 plan DM。

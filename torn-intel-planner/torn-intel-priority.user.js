@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Torn Intel planner priority
-// @version      1.1.1
+// @version      1.1.2
 // @match        https://torn-intel.com/*
 // @downloadURL  https://raw.githubusercontent.com/Dolacone/monkey/refs/heads/master/torn-intel-planner/torn-intel-priority.user.js
 // @updateURL    https://raw.githubusercontent.com/Dolacone/monkey/refs/heads/master/torn-intel-planner/torn-intel-priority.user.js
@@ -18,6 +18,7 @@
   const RESTOCK_ALERTS_URL = "/api/foreign-stock/restock-alerts";
   const PLAN_ALERTS_URL = "/api/foreign-stock/plan-alerts";
   const TRAVEL_URL = "/api/foreign-stock/my-travel";
+  const CHECKPOINTS_URL = "/api/travel/checkpoints";
   const DM_KINDS = ["leave", "restock"];
   const COUNTRY_ABBR = { mex: "MEX", cay: "CAY", can: "CAN", haw: "HAW", uni: "UK", arg: "ARG", swi: "SWI", jap: "JPN", chi: "CHN", uae: "UAE", sou: "SA" };
 
@@ -31,9 +32,19 @@
   const hm = (ms) => new Date(ms).toTimeString().slice(0, 5);
   const money = (v) => (Math.abs(v) >= 1e6 ? `$${(v / 1e6).toFixed(1)}M` : `$${Math.round(v / 1e3)}k`);
   const statusText = (travel) => (travel === null ? "" : travel.traveling ? `${travel.name} at ${hm(travel.arrivalAt)}` : "in Torn");
+  // A time line goes after the last row whose buy time is at or before it; -1 when there is no time.
+  const lineIndex = (rows, at) => {
+    if (at === null) return -1;
+    let index = 0;
+    rows.forEach((c, i) => {
+      if (c.buyAt <= at) index = i + 1;
+    });
+    return index;
+  };
+  const inFlight = (c, at) => at !== null && c.departAt <= at && at < c.returnAt;
 
   if (typeof module !== "undefined" && module.exports) {
-    module.exports = { pinsFrom, isPinned, byLeaveThenBack, perHour, destOf, money, statusText };
+    module.exports = { pinsFrom, isPinned, byLeaveThenBack, perHour, destOf, money, statusText, lineIndex, inFlight };
     return;
   }
 
@@ -49,6 +60,7 @@
     armed: { leave: [], restock: [] },
     playerId: null,
     drugReadyAt: null,
+    ocAt: null,
     travel: null,
     leadMinutes: 10,
     message: "",
@@ -117,6 +129,7 @@
       loadLeadMinutes();
       refreshAlerts();
       refreshDrugCooldown();
+      refreshOc();
       refreshTravel();
     }
     scheduleRender();
@@ -259,6 +272,17 @@
     render();
   };
 
+  const refreshOc = async () => {
+    try {
+      const res = await fetch(CHECKPOINTS_URL);
+      if (res.ok) {
+        const at = (await res.json()).ocReadyAt;
+        state.ocAt = Number.isFinite(at) ? at : null;
+      }
+    } catch {}
+    render();
+  };
+
   const refreshTravel = async () => {
     try {
       const res = await fetch(TRAVEL_URL);
@@ -342,6 +366,9 @@
     .xanax { display: flex; align-items: center; gap: 8px; padding: 2px 0 2px 22px; color: #ea580c; font-weight: 600; font-variant-numeric: tabular-nums; }
     .xanax::after { content: ""; flex: 1; border-top: 1px dashed #ea580c; opacity: .6; }
     .xan { color: #ea580c; font-weight: 600; }
+    .ocline { display: flex; align-items: center; gap: 8px; padding: 2px 0 2px 22px; color: #a855f7; font-weight: 600; font-variant-numeric: tabular-nums; }
+    .ocline::after { content: ""; flex: 1; border-top: 1px dashed #a855f7; opacity: .6; }
+    .oc { color: #a855f7; font-weight: 600; }
     .profit { text-align: right; color: #34d399; font-variant-numeric: tabular-nums; }
     .act { text-align: right; font-size: 11px; color: #64748b; }
     .dm.armed { background: #1d4ed8; border-color: #3b82f6; }
@@ -374,7 +401,11 @@
     const tone = armedKinds.length === DM_KINDS.length ? " armed" : armedKinds.length ? " partial" : "";
     const xanaxAt = state.drugReadyAt;
     const leaveTone = xanaxAt !== null && c.departAt <= xanaxAt && xanaxAt < c.buyAt ? ' class="xan"' : "";
-    const backTone = xanaxAt !== null && c.buyAt <= xanaxAt && xanaxAt < c.returnAt ? ' class="xan"' : "";
+    const backClasses = [
+      xanaxAt !== null && c.buyAt <= xanaxAt && xanaxAt < c.returnAt ? "xan" : "",
+      inFlight(c, state.ocAt) ? "oc" : "",
+    ].filter(Boolean);
+    const backTone = backClasses.length ? ` class="${backClasses.join(" ")}"` : "";
     const action = selected && Number.isFinite(c.restockAt)
       ? `<button class="dm${tone}" data-act="dm" data-id="${c.id}"${state.busy ? " disabled" : ""}>${label}</button>`
       : clash
@@ -391,20 +422,9 @@
   const HEAD_HTML = `<li class="row head"><span class="cols"><span></span><span>Dest</span><span>Leave</span><span>Buy</span><span>Back</span></span>
     <span class="profit">Profit</span><span class="act"></span></li>`;
 
-  // Xanax line goes after the last row whose buy time is at or before it.
-  const xanaxIndex = (rows) => {
-    const at = state.drugReadyAt;
-    if (at === null) return -1;
-    let index = 0;
-    rows.forEach((c, i) => {
-      if (c.buyAt <= at) index = i + 1;
-    });
-    return index;
-  };
-
-  const xanaxHtml = () => {
+  const lineHtml = (cls, at, label) => {
     const now = Date.now();
-    return `<li class="xanax">${state.drugReadyAt <= now ? `${hm(now)} Xanax ready` : `${hm(state.drugReadyAt)} Xanax`}</li>`;
+    return `<li class="${cls}">${at <= now ? `${hm(now)} ${label} ready` : `${hm(at)} ${label}`}</li>`;
   };
 
   const listHtml = (view) => {
@@ -412,9 +432,19 @@
     if (!rows.length) {
       return `<p class="empty">${view.periodEnd === null ? "No flight fits in the next 24h" : `No flight fits before ${hm(view.periodEnd)}`}</p>`;
     }
-    const items = rows.map((c) => rowHtml(c, view));
-    const at = xanaxIndex(rows);
-    if (at >= 0) items.splice(at, 0, xanaxHtml());
+    const lines = [
+      { at: state.drugReadyAt, cls: "xanax", label: "Xanax" },
+      { at: state.ocAt, cls: "ocline", label: "OC" },
+    ]
+      .filter((l) => l.at !== null)
+      .map((l) => ({ index: lineIndex(rows, l.at), at: l.at, html: lineHtml(l.cls, l.at, l.label) }))
+      .sort((a, b) => a.index - b.index || a.at - b.at);
+    const items = [];
+    rows.forEach((c, i) => {
+      lines.filter((l) => l.index === i).forEach((l) => items.push(l.html));
+      items.push(rowHtml(c, view));
+    });
+    lines.filter((l) => l.index === rows.length).forEach((l) => items.push(l.html));
     return `<ul>${HEAD_HTML}${items.join("")}</ul>`;
   };
 
@@ -487,6 +517,7 @@
     if (!state.view) return;
     refreshAlerts();
     refreshDrugCooldown();
+    refreshOc();
     refreshTravel();
   }, 120e3);
 

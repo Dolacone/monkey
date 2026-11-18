@@ -15,6 +15,8 @@ Run with `node --test` in this folder.
 - `byLeaveThenBack`（REQ-002 條件 9）：依 LEAVE 排序，LEAVE 相同時依 BACK 排序。
 - `perHour` 與 `money`（REQ-002 條件 7）：該趟利潤除以 LEAVE 到 BACK 的時數，3 小時 $3M 顯示 `$1.0M`。
 - `destOf`（REQ-002 條件 5）：`jap` 顯示 `JPN`，`haw` 顯示 `HAW`。
+- `lineIndex`（REQ-005 條件 3、4，REQ-007 條件 3、4）：線放在 BUY 不晚於該時間的最後一列之後，沒有這種列時放在最前面，沒有時間時不放。
+- `inFlight`（REQ-007 條件 6）：OC 時間在 LEAVE（含）到 BACK（不含）之間才標色。
 - `statusText`（REQ-002 條件 17）：
   - 飛行中顯示目的地和抵達時間，例如 `Torn at 11:12`。
   - 不在飛行中顯示 `in Torn`。

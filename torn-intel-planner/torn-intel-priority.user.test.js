@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 
-const { pinsFrom, isPinned, byLeaveThenBack, perHour, destOf, money, statusText } = require('./torn-intel-priority.user.js');
+const { pinsFrom, isPinned, byLeaveThenBack, perHour, destOf, money, statusText, lineIndex, inFlight } = require('./torn-intel-priority.user.js');
 
 const at = (h, m) => new Date(2026, 10, 18, h, m).getTime();
 const trip = (country, itemId, leave, back, profit = 0) => ({ country, itemId, departAt: leave, returnAt: back, profit });
@@ -53,4 +53,28 @@ test('statusText shows the flight arrival, or in Torn when not flying', () => {
   assert.equal(statusText({ traveling: true, name: 'Hawaii', arrivalAt: at(12, 30) }), 'Hawaii at 12:30');
   assert.equal(statusText({ traveling: false, name: '', arrivalAt: undefined }), 'in Torn');
   assert.equal(statusText(null), '');
+});
+
+// REQ-007 #3, #4 (and REQ-005 #3, #4): the line goes after the last row whose BUY is not later than the time.
+test('lineIndex places the line by BUY time, before every row when no BUY is earlier', () => {
+  const rows = [
+    { buyAt: at(14, 16) },
+    { buyAt: at(15, 29) },
+    { buyAt: at(16, 42) },
+    { buyAt: at(17, 51) },
+  ];
+  assert.equal(lineIndex(rows, at(16, 45)), 3);
+  assert.equal(lineIndex(rows, at(16, 42)), 3);
+  assert.equal(lineIndex(rows, at(13, 0)), 0);
+  assert.equal(lineIndex(rows, null), -1);
+});
+
+// REQ-007 #6: BACK turns purple when OC is ready from LEAVE (included) until BACK (excluded).
+test('inFlight is true from LEAVE up to, but not including, BACK', () => {
+  const t = trip('jap', 206, at(14, 40), at(18, 29));
+  assert.equal(inFlight(t, at(16, 45)), true);
+  assert.equal(inFlight(t, at(14, 40)), true);
+  assert.equal(inFlight(t, at(18, 29)), false);
+  assert.equal(inFlight(t, at(14, 39)), false);
+  assert.equal(inFlight(t, null), false);
 });

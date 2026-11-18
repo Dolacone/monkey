@@ -13,5 +13,6 @@
 | restock DM | 補貨時的 Discord 提醒 |
 | 睡眠時段 | 網站 schedule 裡的 afk 時段，時間軸上顯示為 Asleep / away |
 | Xanax 時間 | 目前藥物冷卻（drug cooldown）結束的時間 |
+| OC 時間 | 網站記錄的 organized crime 準備好的時間 |
 | priority 模式 | 勾選結果由優先組合排程自動決定 |
 | manual 模式 | 勾選結果由使用者手動決定 |
