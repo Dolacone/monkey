@@ -2,7 +2,7 @@
 
 ## 情境
 
-> 網站沒有一個簡單清潔的面板，可以「list possible flights (Japan Xanax & Canada Xanax)」。使用者也要求「list by day period」：白天時只列到下一次睡眠，睡眠中時列到下一次睡眠。
+> 網站沒有一個簡單清潔的面板，可以「list possible flights (Japan Xanax & Canada Xanax)」。使用者也要求「list by day period」：白天時只列到下一次睡眠，睡眠中時列到下一次睡眠。分區塊的列表也不方便比較：使用者要所有航班在同一個列表、以 DEST 區分，標題顯示目前狀態（例如「Torn at 11:12」），利潤改以 $/h 比較。
 
 ## 行為
 
@@ -14,12 +14,17 @@
 
 ### 列表
 
-4. 面板依優先清單分成 Japan Xanax、Canada Xanax 兩個區塊。
-5. 區塊標題右側顯示一趟的數量和每件利潤，例如 `38 x $179k`。
-6. 每個區塊頂端有一列欄名：LEAVE、BUY、BACK、PROFIT。
-7. 每列顯示勾選框、LEAVE、BUY、BACK 三個時間、該趟利潤和動作欄。
+4. 面板把所有優先組合的航班列在同一個列表。
+   - 列表不分區塊，不顯示一趟的數量和每件利潤。
+5. DEST 顯示國家縮寫，例如 `JPN`、`HAW`。
+   - 不顯示物品名稱。
+6. 列表頂端有一列欄名：DEST、LEAVE、BUY、BACK、PROFIT。
+7. 每列顯示勾選框、DEST、LEAVE、BUY、BACK 三個時間、PROFIT 和動作欄。
+   - PROFIT 是每小時利潤：該趟利潤除以 LEAVE 到 BACK 的時數。
+   - 例如來回 3 小時、該趟利潤 $3M 時，PROFIT 顯示 `$1.0M`。
+   - PROFIT 前不加 `+`。
 8. 面板列出哪些航班由 script 判斷，不限於網站計畫中的航班。
-9. 只列出符合網站限制、可以飛的航班，依出發時間排序。
+9. 只列出符合網站限制、可以飛的航班，依 LEAVE 時間排序，LEAVE 相同時依 BACK 時間排序。
 10. 已勾選的列是亮色，未勾選的列是灰色。
 11. 和已勾選航班時間重疊的列（含 rest 時間）會再淡化，勾選框鎖住。
 12. 重疊列的動作欄顯示 `overlaps HH:MM`，HH:MM 是擋住它的那趟的出發時間。
@@ -30,7 +35,9 @@
 14. 白天時，只列今晚睡眠開始前出發的航班。
 15. 睡眠中時，列到下一次睡眠開始前出發的航班。
 16. 沒有睡眠時段時，列出未來 24 小時的航班。
-17. header 顯示目前範圍：`until sleep HH:MM` 或 `next 24h`。
+17. header 顯示目前狀態。
+   - 飛行中時，顯示目的地和抵達時間，例如 `Torn at 11:12`、`Hawaii at 12:30`。
+   - 不在飛行中時，顯示 `in Torn`。
 18. 範圍之後的航班不列出，但仍保留在網站的 24 小時計畫中。
 19. footer 只計算範圍內已勾選的趟數和總利潤。
-20. 區塊在範圍內沒有航班時，顯示 `No flight fits before HH:MM` 或 `No flight fits in the next 24h`。
+20. 列表在範圍內沒有航班時，顯示 `No flight fits before HH:MM` 或 `No flight fits in the next 24h`。

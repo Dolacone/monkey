@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Torn Intel planner priority
-// @version      1.0.0
+// @version      1.1.0
 // @match        https://torn-intel.com/*
 // @downloadURL  https://raw.githubusercontent.com/Dolacone/monkey/refs/heads/master/torn-intel-planner/torn-intel-priority.user.js
 // @updateURL    https://raw.githubusercontent.com/Dolacone/monkey/refs/heads/master/torn-intel-planner/torn-intel-priority.user.js
@@ -9,24 +9,36 @@
 // ==/UserScript==
 
 (() => {
-  // Earlier entries fill the day first; later entries fill only the remaining gaps.
-  const PRIORITY = [
-    { country: "jap", itemId: 206, label: "Japan Xanax" },
-    { country: "can", itemId: 206, label: "Canada Xanax" },
-  ];
-
   // Turbopack module ids and export names in torn-intel's current build.
   const PLAN_MODULE = 249186; // "X" planDay(args), "T" buildCandidates(sources, opts), "p" checkTrips(trips, args, busy)
-  const FILTER_MODULE = 168931; // "d" applySourceFilters(sources, opts)
+  const FILTER_MODULE = 460344; // "d" applySourceFilters(sources, opts)
 
   const SELECTION_KEY = "tiPrioritySelection";
+  const PINS_KEY = "uipref_dp_favorites";
   const LEAVE_ALERTS_URL = "/api/foreign-stock/flight-alerts";
   const RESTOCK_ALERTS_URL = "/api/foreign-stock/restock-alerts";
   const PLAN_ALERTS_URL = "/api/foreign-stock/plan-alerts";
+  const TRAVEL_URL = "/api/foreign-stock/my-travel";
   const DM_KINDS = ["leave", "restock"];
+  const COUNTRY_ABBR = { mex: "MEX", cay: "CAY", can: "CAN", haw: "HAW", uni: "UK", arg: "ARG", swi: "SWI", jap: "JPN", chi: "CHN", uae: "UAE", sou: "SA" };
+
+  // Rules
+
+  const pinsFrom = (raw) => JSON.parse(raw ?? "[]").map((f) => ({ country: f.code, itemId: f.itemId }));
+  const isPinned = (pins, c) => pins.some((p) => p.country === c.country && p.itemId === c.itemId);
+  const byLeaveThenBack = (a, b) => a.departAt - b.departAt || a.returnAt - b.returnAt;
+  const perHour = (t) => t.profit / ((t.returnAt - t.departAt) / 3600e3);
+  const destOf = (country) => COUNTRY_ABBR[country] ?? country.toUpperCase();
+  const hm = (ms) => new Date(ms).toTimeString().slice(0, 5);
+  const money = (v) => (Math.abs(v) >= 1e6 ? `$${(v / 1e6).toFixed(1)}M` : `$${Math.round(v / 1e3)}k`);
+  const statusText = (travel) => (travel === null ? "" : travel.traveling ? `${travel.name} at ${hm(travel.arrivalAt)}` : "in Torn");
+
+  if (typeof module !== "undefined" && module.exports) {
+    module.exports = { pinsFrom, isPinned, byLeaveThenBack, perHour, destOf, money, statusText };
+    return;
+  }
 
   const state = (window.__tiPriority = {
-    priority: PRIORITY,
     patched: [],
     replan: null,
     checkTrips: null,
@@ -39,13 +51,20 @@
     armed: { leave: [], restock: [] },
     playerId: null,
     drugReadyAt: null,
+    travel: null,
     leadMinutes: 10,
     message: "",
     busy: false,
     collapsed: false,
   });
 
-  const rankOf = (c) => PRIORITY.findIndex((p) => p.country === c.country && p.itemId === c.itemId);
+  const loadPins = () => {
+    try {
+      return pinsFrom(localStorage.getItem(PINS_KEY));
+    } catch {
+      return [];
+    }
+  };
   const isNow = (c) => String(c.id).endsWith(":now");
   // Same restock cycle: within half a restock interval, or 15 minutes when the interval is unknown.
   const sameCycle = (a, b, intervalMin) => Math.abs(a - b) < (intervalMin > 0 ? 0.5 * intervalMin * 60e3 : 15 * 60e3);
@@ -69,29 +88,20 @@
     } catch {}
   };
 
-  const tieredPlan = (planDay, args) => {
-    let pinned = args.pinned ?? [];
-    let result = null;
-    for (let rank = 0; rank < PRIORITY.length; rank++) {
-      result = planDay({ ...args, objective: "profit", pinned, candidates: args.candidates.filter((c) => rankOf(c) === rank) });
-      pinned = result.trips;
-    }
-    return result;
-  };
-
   const wrapPlanDay = (planDay) => (args) => {
     state.replan = () => planWithPriority(planDay, args);
     return planWithPriority(planDay, args);
   };
 
   const planWithPriority = (planDay, args) => {
-    const candidates = args.candidates.filter((c) => rankOf(c) >= 0);
+    const pins = loadPins();
+    const candidates = args.candidates.filter((c) => isPinned(pins, c));
     if (candidates.length === 0) return planDay(args);
     const restMs = Math.max(0, args.restMs ?? 0);
     const fixed = args.pinned ?? [];
     const busy = [...(args.busy ?? []), ...fixed.map((t) => ({ startAt: t.departAt - restMs, endAt: t.returnAt + restMs }))];
     const reasons = state.checkTrips ? state.checkTrips(candidates, args, busy) : new Map();
-    const feasible = candidates.filter((c) => !reasons.get(c.id)).sort((a, b) => a.departAt - b.departAt);
+    const feasible = candidates.filter((c) => !reasons.get(c.id)).sort(byLeaveThenBack);
     const selection = loadSelection();
     const result = selection.manual
       ? planDay({
@@ -100,29 +110,31 @@
         candidates: [],
         pinned: [...fixed, ...feasible.filter((c) => selection.slots.some((s) => matches(s, c)))],
       })
-      : tieredPlan(planDay, { ...args, candidates });
+      : planDay({ ...args, objective: "profit", candidates });
     const sleepStarts = (args.afk ?? []).map((a) => a.startAt).filter((at) => at > args.windowStart);
     const periodEnd = sleepStarts.length ? Math.min(...sleepStarts) : null;
     const firstView = state.view === null;
-    state.view = { feasible, chosen: result.trips.filter((t) => rankOf(t) >= 0), fixed, restMs, periodEnd };
+    state.view = { feasible, chosen: result.trips.filter((t) => isPinned(pins, t)), fixed, restMs, periodEnd };
     if (firstView) {
       loadLeadMinutes();
       refreshAlerts();
       refreshDrugCooldown();
+      refreshTravel();
     }
     scheduleRender();
     return result;
   };
 
-  // Priority pairs stay in the plan even when their country is switched off in the destination filter.
+  // Pinned pairs stay in the plan even when their country is switched off in the destination filter.
   const wrapFilter = (applyFilters) => (sources, opts) => {
     state.flightBook = !!opts.flightBook;
+    const pins = loadPins();
     const disabled = new Set(opts.disabledCountries ?? []);
     const kept = applyFilters(sources, {
       ...opts,
-      disabledCountries: [...disabled].filter((code) => !PRIORITY.some((p) => p.country === code)),
+      disabledCountries: [...disabled].filter((code) => !pins.some((p) => p.country === code)),
     });
-    return kept.filter((s) => !disabled.has(s.country) || rankOf(s) >= 0);
+    return kept.filter((s) => !disabled.has(s.country) || isPinned(pins, s));
   };
 
   const wrapBuildCandidates = (build) => (sources, opts) => {
@@ -261,6 +273,17 @@
     render();
   };
 
+  const refreshTravel = async () => {
+    try {
+      const res = await fetch(TRAVEL_URL);
+      if (res.ok) {
+        const travel = await res.json();
+        state.travel = { traveling: !!travel.traveling, name: travel.destination?.name ?? "", arrivalAt: travel.arrivalAt };
+      }
+    } catch {}
+    render();
+  };
+
   // Adds the trip to (on) or removes it from (off) each kind's plan alert set. Returns true when every kind ends in the wanted state.
   const syncTripDms = async (trip, kinds, on) => {
     const failed = [];
@@ -310,7 +333,7 @@
 
   const CSS = `
     :host { all: initial; }
-    .panel { width: 360px; max-height: 70vh; display: flex; flex-direction: column; overflow: hidden;
+    .panel { width: 390px; max-height: 70vh; display: flex; flex-direction: column; overflow: hidden;
       font: 12px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; color: #e5e7eb;
       background: #0f172a; border: 1px solid #334155; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,.45); }
     header { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid #1e293b; }
@@ -320,14 +343,13 @@
     button:disabled { opacity: .4; cursor: default; }
     .body { overflow: auto; }
     section { padding: 8px 12px; border-bottom: 1px solid #1e293b; }
-    h3 { display: flex; justify-content: space-between; margin: 0 0 4px; font-size: 12px; font-weight: 600; }
-    h3 span { color: #94a3b8; font-weight: 400; }
     ul { list-style: none; margin: 0; padding: 0; }
-    .row { display: grid; grid-template-columns: 1fr 64px 92px; align-items: center; gap: 8px; padding: 3px 0; color: #94a3b8; }
+    .row { display: grid; grid-template-columns: 1fr 56px 92px; align-items: center; gap: 8px; padding: 3px 0; color: #94a3b8; }
     .row.on { color: #f8fafc; }
     .row.clash { opacity: .45; }
-    label, .cols { display: grid; grid-template-columns: 16px repeat(3, 38px); align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
+    label, .cols { display: grid; grid-template-columns: 16px 32px repeat(3, 38px); align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
     label { cursor: pointer; }
+    .dest { color: #cbd5e1; font-weight: 600; }
     .buy { color: #64748b; }
     .head { color: #64748b; font-size: 10px; text-transform: uppercase; letter-spacing: .04em; }
     .head .profit { color: inherit; }
@@ -349,8 +371,6 @@
   let root = null;
   let frame = 0;
 
-  const hm = (ms) => new Date(ms).toTimeString().slice(0, 5);
-  const money = (v) => (Math.abs(v) >= 1e6 ? `$${(v / 1e6).toFixed(1)}M` : `$${Math.round(v / 1e3)}k`);
   const conflictOf = (c, view) =>
     [...view.chosen, ...view.fixed].find(
       (t) => t.id !== c.id && c.departAt < t.returnAt + view.restMs && t.departAt - view.restMs < c.returnAt,
@@ -376,13 +396,13 @@
       : "";
     return `<li class="row${selected ? " on" : ""}${clash ? " clash" : ""}">
       <label><input type="checkbox" data-act="trip" data-id="${c.id}"${selected ? " checked" : ""}${clash || state.busy ? " disabled" : ""}>
-        <span${leaveTone}>${hm(c.departAt)}</span><span class="buy">${hm(c.buyAt)}</span><span${backTone}>${hm(c.returnAt)}</span></label>
-      <span class="profit">+${money(c.profit)}</span>
+        <span class="dest">${destOf(c.country)}</span><span${leaveTone}>${hm(c.departAt)}</span><span class="buy">${hm(c.buyAt)}</span><span${backTone}>${hm(c.returnAt)}</span></label>
+      <span class="profit">${money(perHour(c))}</span>
       <span class="act">${action}</span>
     </li>`;
   };
 
-  const HEAD_HTML = `<li class="row head"><span class="cols"><span></span><span>Leave</span><span>Buy</span><span>Back</span></span>
+  const HEAD_HTML = `<li class="row head"><span class="cols"><span></span><span>Dest</span><span>Leave</span><span>Buy</span><span>Back</span></span>
     <span class="profit">Profit</span><span class="act"></span></li>`;
 
   // Xanax line goes after the last row whose buy time is at or before it.
@@ -401,31 +421,29 @@
     return `<li class="xanax">${state.drugReadyAt <= now ? `${hm(now)} Xanax ready` : `${hm(state.drugReadyAt)} Xanax`}</li>`;
   };
 
-  const sectionHtml = (p, view) => {
-    const rows = view.feasible.filter((c) => c.country === p.country && c.itemId === p.itemId && inPeriod(c, view));
-    const sample = rows.find((c) => c.units > 0);
-    const perItem = sample ? `<span>${sample.units} x ${money(sample.profit / sample.units)}</span>` : "";
-    const empty = view.periodEnd === null ? "No flight fits in the next 24h" : `No flight fits before ${hm(view.periodEnd)}`;
+  const listHtml = (view) => {
+    const rows = view.feasible.filter((c) => inPeriod(c, view));
+    if (!rows.length) {
+      return `<p class="empty">${view.periodEnd === null ? "No flight fits in the next 24h" : `No flight fits before ${hm(view.periodEnd)}`}</p>`;
+    }
     const items = rows.map((c) => rowHtml(c, view));
     const at = xanaxIndex(rows);
     if (at >= 0) items.splice(at, 0, xanaxHtml());
-    const list = rows.length ? `<ul>${HEAD_HTML}${items.join("")}</ul>` : `<p class="empty">${empty}</p>`;
-    return `<section><h3>${p.label}${perItem}</h3>${list}</section>`;
+    return `<ul>${HEAD_HTML}${items.join("")}</ul>`;
   };
 
   const panelHtml = (view) => {
     const manual = loadSelection().manual;
     const listed = view.chosen.filter((t) => inPeriod(t, view));
     const total = listed.reduce((sum, t) => sum + t.profit, 0);
-    const period = view.periodEnd === null ? "next 24h" : `until sleep ${hm(view.periodEnd)}`;
     return `<div class="panel${state.collapsed ? " collapsed" : ""}">
       <header>
-        <span class="title">Trips <span class="mode">${period}</span></span>
+        <span class="title">Trips <span class="mode">${statusText(state.travel)}</span></span>
         <span class="mode">${manual ? "manual" : "priority"}</span>
         <button data-act="auto"${manual ? "" : " disabled"}>Auto</button>
         <button data-act="collapse">${state.collapsed ? "+" : "-"}</button>
       </header>
-      <div class="body">${PRIORITY.map((p) => sectionHtml(p, view)).join("")}</div>
+      <div class="body"><section>${listHtml(view)}</section></div>
       <footer>
         <div>${listed.length} selected · +${money(total)}</div>
         <div class="hint">DM = Discord leave DM ${state.leadMinutes}m before leave + restock DM</div>
@@ -483,6 +501,7 @@
     if (!state.view) return;
     refreshAlerts();
     refreshDrugCooldown();
+    refreshTravel();
   }, 120e3);
 
   // Module patching
