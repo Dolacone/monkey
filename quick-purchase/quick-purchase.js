@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn: Quick Purchase
 // @namespace    quick-purchase
-// @version      1.5.0
+// @version      1.5.1
 // @description  Alert when any target abroad item restocks; each click on the travel message bar (or q / space) packs at the travel agency, self-hosps in flight, and abroad meds out, sells the packed item, and buys the targets in order
 // @author       Dolacone
 // @match        https://www.torn.com/page.php?sid=travel*
@@ -20,6 +20,11 @@
   const LABELS = { target: 'Target item', sell: 'Sell item', hosp: 'Self-hosp item', med: 'Med-out item' };
   const STORAGE_KEY = 'quickPurchase.settings';
   const SOUND_URL = 'https://cdn.pixabay.com/download/audio/2024/05/23/audio_336d55dfa8.mp3?filename=servant-bell-ring-2-211683.mp3';
+
+  // REQ-002 #4: an empty field saves its default.
+  function withDefaults(values) {
+    return Object.fromEntries(Object.keys(DEFAULTS).map((k) => [k, values[k] || DEFAULTS[k]]));
+  }
 
   // REQ-002 #5: the bag holds self-hosp, med-out, then the sell item.
   function packageSettings(names, cfg) {
@@ -117,7 +122,7 @@
   }
 
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { packageSettings, parseTargets, parseStock, isRestock, checkRestock, packStep, abroadStep, buyPlan, pickOwned, messageText, isTriggerKey };
+    module.exports = { withDefaults, packageSettings, parseTargets, parseStock, isRestock, checkRestock, packStep, abroadStep, buyPlan, pickOwned, messageText, isTriggerKey };
     return;
   }
 
@@ -144,8 +149,13 @@
   sound.preload = 'auto';
 
   function loadSettings() {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw === null) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULTS));
+      return { ...DEFAULTS };
+    }
     try {
-      return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') };
+      return { ...DEFAULTS, ...JSON.parse(raw) };
     } catch (e) {
       return { ...DEFAULTS };
     }
@@ -359,7 +369,8 @@
     form.append(save, load);
     form.addEventListener('submit', (event) => {
       event.preventDefault();
-      saveSettings(Object.fromEntries(Object.keys(DEFAULTS).map((k) => [k, form.elements[k].value.trim()])));
+      saveSettings(withDefaults(Object.fromEntries(Object.keys(DEFAULTS).map((k) => [k, form.elements[k].value.trim()]))));
+      fill();
     });
     load.addEventListener('click', async () => {
       const names = (await bagSlots()).filter((s) => s.item).map((s) => s.item.name);

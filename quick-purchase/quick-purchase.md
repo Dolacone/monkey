@@ -34,6 +34,7 @@
 - `localStorage` 鍵 `quickPurchase.settings`，值為 JSON `{ target, sell, hosp, med }`。
   - `target` 是逗號分隔的字串，例如 `"Xanax, Shark Fin"`。
   - 缺少的鍵用預設值。
+  - 鍵不存在時，寫入整組預設值。
 - 設定表單 `div.qp-settings` 插在 `#travel-root` 前面，建立時填入目前的設定。
 - `Load package` 按鈕在設定表單內。
 - 表單按鈕使用 Torn 的 `torn-btn` class，跟隨頁面的深色或淺色模式。

@@ -9,6 +9,7 @@ Run with `node --test` in this folder.
 
 ## Coverage
 
+- `withDefaults`（REQ-002 條件 4）：留空的欄位存成預設值，有填的欄位保留輸入。
 - `packageSettings`（REQ-002 條件 5）：背包順序對應入院、出院、賣出道具，目標商品不變。
 - `parseTargets`（REQ-002 條件 1）：目標商品欄位以逗號分隔，保留順序，去掉空白與空項目。
 - `parseStock`：stock 格文字解析成數字，含 `stock` 標籤與千分位逗號。

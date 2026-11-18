@@ -1,9 +1,16 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 
-const { packageSettings, parseTargets, parseStock, isRestock, checkRestock, packStep, abroadStep, buyPlan, pickOwned, messageText, isTriggerKey } = require('./quick-purchase.js');
+const { withDefaults, packageSettings, parseTargets, parseStock, isRestock, checkRestock, packStep, abroadStep, buyPlan, pickOwned, messageText, isTriggerKey } = require('./quick-purchase.js');
 
 const CFG = { target: 'Xanax', sell: 'Vicodin', hosp: 'Blood Bag : A+', med: 'Blood Bag : O+' };
+
+// REQ-002 #4: a field saved empty falls back to its default; filled fields keep the typed value.
+test('withDefaults fills empty fields with their defaults', () => {
+  assert.deepEqual(withDefaults({ target: '', sell: 'Speed', hosp: '', med: 'Morphine' }),
+    { target: 'Xanax, Shark Fin, Turtle Shell', sell: 'Speed', hosp: 'Blood Bag : A+', med: 'Morphine' });
+  assert.deepEqual(withDefaults(CFG), CFG);
+});
 
 // REQ-002 #5: bag order self-hosp, med-out, sell becomes the three item settings; the target stays.
 test('packageSettings reads the bag in self-hosp, med-out, sell order', () => {
