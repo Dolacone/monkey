@@ -8,6 +8,7 @@
 
 1. 腳本提供以下設定，各有預設值。
    - 目標商品：`Xanax`。
+     - 可設定多個，用逗號分隔，例如 `Xanax, Shark Fin`。
    - 賣出道具：`Vicodin`。
    - 入院道具：`Blood Bag : A+`。
    - 出院道具：`Blood Bag : O+`。

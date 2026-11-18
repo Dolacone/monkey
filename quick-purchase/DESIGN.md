@@ -30,7 +30,7 @@ Selectors, request formats, and stored keys are in `quick-purchase.md`.
 
 - 存在 torn.com 的 `localStorage`。
   - Tampermonkey 的 `GM_setValue` 需要 `@grant`，會讓腳本改在沙盒執行，讀不到 `window.addRFC`。
-- 存檔時把 stock 讀數重設，新的目標商品以第一次讀數判斷。
+- 存檔時把所有目標商品的 stock 讀數重設，新的目標商品以第一次讀數判斷。
 - `Load package` 把背包道具名稱去重後依序對應入院、出院、賣出道具。
 
 ## REQ-003 — 旅行社打包
@@ -47,6 +47,9 @@ Selectors, request formats, and stored keys are in `quick-purchase.md`.
 - 購買後重抓。
 
 三者最後都改寫 stock 那一格，因此腳本監看 DOM，不只訂閱 WebSocket。
+
+- 每個目標商品各自保留上一次的 stock 讀數。
+- 商店沒有該商品的列時，保留上一次讀數，不算補貨。
 
 ## REQ-006 — 提示音
 
@@ -72,3 +75,4 @@ Selectors, request formats, and stored keys are in `quick-purchase.md`.
   - 旅行社點擊訊息列打包。
   - 飛行中點擊訊息列入院。
   - 出院後不重新整理頁面時，`body[data-layout]` 是否變回非住院。
+  - 多個目標商品：任一補貨的提醒、依序購買、數量小於空格數的 `buy`。

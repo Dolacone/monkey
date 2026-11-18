@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 
-const { packageSettings, parseStock, isRestock, packStep, abroadStep, pickOwned, messageText, isTriggerKey } = require('./quick-purchase.js');
+const { packageSettings, parseTargets, parseStock, isRestock, checkRestock, packStep, abroadStep, buyPlan, pickOwned, messageText, isTriggerKey } = require('./quick-purchase.js');
 
 const CFG = { target: 'Xanax', sell: 'Vicodin', hosp: 'Blood Bag : A+', med: 'Blood Bag : O+' };
 
@@ -9,6 +9,13 @@ const CFG = { target: 'Xanax', sell: 'Vicodin', hosp: 'Blood Bag : A+', med: 'Bl
 test('packageSettings reads the bag in self-hosp, med-out, sell order', () => {
   assert.deepEqual(packageSettings(['Blood Bag : B+', 'Morphine', 'Speed'], CFG),
     { target: 'Xanax', hosp: 'Blood Bag : B+', med: 'Morphine', sell: 'Speed' });
+});
+
+// REQ-002 #1: several targets in one field, comma-separated, order kept.
+test('parseTargets splits the target field on commas in order', () => {
+  assert.deepEqual(parseTargets('Xanax, Shark Fin'), ['Xanax', 'Shark Fin']);
+  assert.deepEqual(parseTargets('Xanax'), ['Xanax']);
+  assert.deepEqual(parseTargets(' Xanax ,, Blood Bag : A+ ,'), ['Xanax', 'Blood Bag : A+']);
 });
 
 test('parseStock reads the stock cell text including the screen-reader label', () => {
@@ -28,6 +35,26 @@ test('isRestock fires on a non-zero first reading and on any increase', () => {
   assert.equal(isRestock(5, 5), false);
 });
 
+// REQ-006 #1: any one target restocking alerts; each target is compared with its own last reading.
+test('checkRestock alerts when any target restocks', () => {
+  const first = checkRestock({}, [{ name: 'Xanax', stock: 0 }, { name: 'Shark Fin', stock: 0 }]);
+  assert.equal(first.restocked, false);
+  assert.deepEqual(first.next, { Xanax: 0, 'Shark Fin': 0 });
+
+  const second = checkRestock(first.next, [{ name: 'Xanax', stock: 0 }, { name: 'Shark Fin', stock: 5 }]);
+  assert.equal(second.restocked, true);
+
+  assert.equal(checkRestock({}, [{ name: 'Xanax', stock: 0 }, { name: 'Shark Fin', stock: 38 }]).restocked, true);
+  assert.equal(checkRestock({ Xanax: 9, 'Shark Fin': 5 }, [{ name: 'Xanax', stock: 3 }, { name: 'Shark Fin', stock: 5 }]).restocked, false);
+});
+
+// REQ-006 #1: a target missing from this shop does not reset its reading or alert.
+test('checkRestock skips targets without a stock row', () => {
+  const r = checkRestock({ Xanax: 4 }, [{ name: 'Xanax', stock: null }, { name: 'Shark Fin', stock: 0 }]);
+  assert.equal(r.restocked, false);
+  assert.deepEqual(r.next, { Xanax: 4, 'Shark Fin': 0 });
+});
+
 // REQ-003 #1: one item per click, self-hosp, then med-out, then fill.
 test('packStep packs self-hosp, then med-out, then fills the free slots', () => {
   assert.deepEqual(packStep([], 38, CFG), { act: 'pack', name: 'Blood Bag : A+' });
@@ -36,19 +63,32 @@ test('packStep packs self-hosp, then med-out, then fills the free slots', () => 
   assert.deepEqual(packStep(['Blood Bag : A+', 'Blood Bag : O+', 'Vicodin'], 0, CFG), { act: null });
 });
 
-// REQ-005 #1: in hospital, med out only after the target is in stock.
-test('abroadStep meds out in hospital when the target is in stock', () => {
-  assert.equal(abroadStep({ hospital: true, hasMed: true, sellCount: 36, stock: 855 }), 'med');
-  assert.equal(abroadStep({ hospital: true, hasMed: true, sellCount: 36, stock: 0 }), null);
-  assert.equal(abroadStep({ hospital: true, hasMed: false, sellCount: 36, stock: 855 }), null);
+// REQ-005 #1: in hospital, med out only after a target is in stock.
+test('abroadStep meds out in hospital when a target is in stock', () => {
+  assert.equal(abroadStep({ hospital: true, hasMed: true, sellCount: 36, inStock: true }), 'med');
+  assert.equal(abroadStep({ hospital: true, hasMed: true, sellCount: 36, inStock: false }), null);
+  assert.equal(abroadStep({ hospital: true, hasMed: false, sellCount: 36, inStock: true }), null);
 });
 
-// REQ-005 #1: out of hospital, sell everything first, then buy while the target is in stock.
+// REQ-005 #1: out of hospital, sell everything first, then buy while a target is in stock.
 test('abroadStep sells before buying out of hospital', () => {
-  assert.equal(abroadStep({ hospital: false, hasMed: false, sellCount: 36, stock: 0 }), 'sell');
-  assert.equal(abroadStep({ hospital: false, hasMed: false, sellCount: 0, stock: 855 }), 'buy');
-  assert.equal(abroadStep({ hospital: false, hasMed: true, sellCount: 0, stock: 855 }), 'buy');
-  assert.equal(abroadStep({ hospital: false, hasMed: false, sellCount: 0, stock: 0 }), null);
+  assert.equal(abroadStep({ hospital: false, hasMed: false, sellCount: 36, inStock: false }), 'sell');
+  assert.equal(abroadStep({ hospital: false, hasMed: false, sellCount: 0, inStock: true }), 'buy');
+  assert.equal(abroadStep({ hospital: false, hasMed: true, sellCount: 0, inStock: true }), 'buy');
+  assert.equal(abroadStep({ hospital: false, hasMed: false, sellCount: 0, inStock: false }), null);
+});
+
+// REQ-005 #1: the first target in stock fills what it can; leftover slots go to the next target on the next trigger.
+test('buyPlan buys the first target in stock, capped by its stock', () => {
+  assert.deepEqual(buyPlan([{ name: 'Xanax', stock: 10 }, { name: 'Shark Fin', stock: 500 }], 29),
+    { name: 'Xanax', stock: 10, amount: 10 });
+  assert.deepEqual(buyPlan([{ name: 'Xanax', stock: 0 }, { name: 'Shark Fin', stock: 500 }], 19),
+    { name: 'Shark Fin', stock: 500, amount: 19 });
+  assert.deepEqual(buyPlan([{ name: 'Xanax', stock: 855 }, { name: 'Shark Fin', stock: 500 }], 29),
+    { name: 'Xanax', stock: 855, amount: 29 });
+  assert.deepEqual(buyPlan([{ name: 'Xanax', stock: null }, { name: 'Shark Fin', stock: 3 }], 29),
+    { name: 'Shark Fin', stock: 3, amount: 3 });
+  assert.equal(buyPlan([{ name: 'Xanax', stock: 0 }, { name: 'Shark Fin', stock: null }], 29), null);
 });
 
 // REQ-003 #2: the faction copy is packed when both exist.

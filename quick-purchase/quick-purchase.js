@@ -2,7 +2,7 @@
 // @name         Torn: Quick Purchase
 // @namespace    quick-purchase
 // @version      1.4.3
-// @description  Alert when the target abroad item restocks; each click on the travel message bar (or q / space) packs at the travel agency, self-hosps in flight, and abroad meds out, sells the packed item, and buys the target
+// @description  Alert when any target abroad item restocks; each click on the travel message bar (or q / space) packs at the travel agency, self-hosps in flight, and abroad meds out, sells the packed item, and buys the targets in order
 // @author       Dolacone
 // @match        https://www.torn.com/page.php?sid=travel*
 // @downloadURL  https://raw.githubusercontent.com/Dolacone/monkey/refs/heads/master/quick-purchase/quick-purchase.js
@@ -26,6 +26,11 @@
     return { ...cfg, hosp: names[0] ?? cfg.hosp, med: names[1] ?? cfg.med, sell: names[2] ?? cfg.sell };
   }
 
+  // REQ-002 #1: comma-separated, in buy order.
+  function parseTargets(text) {
+    return String(text).split(',').map((s) => s.trim()).filter(Boolean);
+  }
+
   // ---- Restock (REQ-006 #1) ----
 
   function parseStock(text) {
@@ -37,6 +42,18 @@
     return prev === undefined ? now > 0 : now > prev;
   }
 
+  // Readings are kept per target; a target without a stock row keeps its last reading.
+  function checkRestock(last, stocks) {
+    const next = { ...last };
+    let restocked = false;
+    for (const { name, stock } of stocks) {
+      if (stock === null) continue;
+      if (isRestock(last[name], stock)) restocked = true;
+      next[name] = stock;
+    }
+    return { restocked, next };
+  }
+
   // ---- Steps (REQ-003 #1, REQ-005 #1) ----
 
   function packStep(names, free, cfg) {
@@ -46,10 +63,16 @@
     return { act: null };
   }
 
-  function abroadStep({ hospital, hasMed, sellCount, stock }) {
-    if (hospital) return hasMed && stock > 0 ? 'med' : null;
+  function abroadStep({ hospital, hasMed, sellCount, inStock }) {
+    if (hospital) return hasMed && inStock ? 'med' : null;
     if (sellCount > 0) return 'sell';
-    return stock > 0 ? 'buy' : null;
+    return inStock ? 'buy' : null;
+  }
+
+  // REQ-005 #1: first target in stock, in the set order, up to its stock.
+  function buyPlan(stocks, free) {
+    const hit = stocks.find((s) => s.stock > 0);
+    return hit ? { ...hit, amount: Math.min(free, hit.stock) } : null;
   }
 
   // REQ-003 #2: faction copy first.
@@ -94,7 +117,7 @@
   }
 
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { packageSettings, parseStock, isRestock, packStep, abroadStep, pickOwned, messageText, isTriggerKey };
+    module.exports = { packageSettings, parseTargets, parseStock, isRestock, checkRestock, packStep, abroadStep, buyPlan, pickOwned, messageText, isTriggerKey };
     return;
   }
 
@@ -129,13 +152,13 @@
   }
 
   let cfg = loadSettings();
-  let lastStock;
+  let lastStock = {};
   let alerted = false;
   let bodyBackground = '';
 
   function saveSettings(next) {
     cfg = next;
-    lastStock = undefined;
+    lastStock = {};
     localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
   }
 
@@ -165,10 +188,12 @@
     status.textContent = text;
   }
 
-  function findTargetRow() {
-    return [...document.querySelectorAll(ROWS)].find(
-      (li) => li.querySelector("button[class*='itemNameButton___']")?.textContent.trim() === cfg.target
-    );
+  function targetStocks() {
+    const rows = [...document.querySelectorAll(ROWS)];
+    return parseTargets(cfg.target).map((name) => {
+      const li = rows.find((r) => r.querySelector("button[class*='itemNameButton___']")?.textContent.trim() === name);
+      return { name, li, stock: readStock(li) };
+    });
   }
 
   function readStock(li) {
@@ -246,15 +271,15 @@
   }
 
   async function runAbroad() {
-    const li = findTargetRow();
     const slots = await bagSlots();
     const medSlot = slots.find((s) => s.item?.name === cfg.med);
     const sellSlots = slots.filter((s) => s.item?.name === cfg.sell);
+    const plan = buyPlan(targetStocks(), slots.filter((s) => !s.item).length);
     const step = abroadStep({
       hospital: document.body.dataset.layout === 'hospital',
       hasMed: !!medSlot,
       sellCount: sellSlots.length,
-      stock: readStock(li),
+      inStock: !!plan,
     });
 
     if (step === 'med') return show(`MED OUT: ${(await useItem(medSlot)).message}`);
@@ -263,11 +288,10 @@
       return show(`SELL ${sellSlots.length}x ${cfg.sell}: ${res.message}`);
     }
     if (step === 'buy') {
-      const amount = slots.filter((s) => !s.item).length;
-      const itemId = li.querySelector("form[id^='item-'][id$='-form']").id.split('-')[1];
-      const res = await travelData('buy', { query: `&itemID=${itemId}&amount=${amount}` });
+      const itemId = plan.li.querySelector("form[id^='item-'][id$='-form']").id.split('-')[1];
+      const res = await travelData('buy', { query: `&itemID=${itemId}&amount=${plan.amount}` });
       if (res.ok) clearAlert();
-      return show(`BUY ${amount}x ${cfg.target}: ${res.message}`);
+      return show(`BUY ${plan.amount}x ${plan.name}: ${res.message}`);
     }
     show('nothing to do');
   }
@@ -363,10 +387,9 @@
     const bar = document.querySelector(BAR);
     if (!bar) return;
     if (alerted) bar.classList.add('qp-green');
-    const now = readStock(findTargetRow());
-    if (now === null) return;
-    if (isRestock(lastStock, now)) startAlert();
-    lastStock = now;
+    const { restocked, next } = checkRestock(lastStock, targetStocks());
+    lastStock = next;
+    if (restocked) startAlert();
   }
 
   document.addEventListener('click', onBarClick, true);
