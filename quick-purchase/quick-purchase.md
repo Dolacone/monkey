@@ -19,6 +19,7 @@
 - `MutationObserver` 監看 `document.body`。
   - 選項：`childList`、`subtree`、`characterData`。
   - 每次變動插入缺少的設定表單與旅行社訊息列。
+  - 每次變動讀現金，判斷剛進入旅行社時是否提醒，以及是否解除提醒。
   - 每次變動重新讀每個目標商品的 stock。
   - 提醒中，每次變動把綠色 class 加回訊息列。
 - `document` 的 `click`，在捕獲階段監聽。
@@ -68,6 +69,7 @@
 | stock | `[class*='cell___']` 中含 `[class*='srOnly___']` 文字 `stock` 的那一格 |
 | 商品 ID | `form#item-<ID>-form` |
 | 背包面板 | `ul[aria-label^='Inventory']` |
+| 現金 | `#user-money` 的 `data-money` |
 
 腳本改動的 DOM：
 
@@ -75,6 +77,7 @@
 - 訊息列內附加 `span.qp-status`，顯示狀態。
 - 訊息列加 class `qp-green`，綠色背景。
 - 整頁背景改 `document.body.style.backgroundColor`。
+  - 補貨提醒與現金不足提醒共用紅色背景。
 - `#travel-root` 前面插入 `div.qp-settings`。
 - 旅行社時，`div.qp-settings` 後面插入 `div.qp-bar`，離開旅行社時移除。
 

@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 
-const { withDefaults, packageSettings, parseTargets, parseStock, isRestock, checkRestock, packStep, abroadStep, buyPlan, pickOwned, messageText, isTriggerKey } = require('./quick-purchase.js');
+const { withDefaults, packageSettings, parseTargets, parseStock, isRestock, checkRestock, packStep, abroadStep, buyPlan, pickOwned, isLowCash, lowCashStep, messageText, isTriggerKey } = require('./quick-purchase.js');
 
 const CFG = { target: 'Xanax', sell: 'Vicodin', hosp: 'Blood Bag : A+', med: 'Blood Bag : O+' };
 
@@ -108,6 +108,32 @@ test('pickOwned prefers the faction copy', () => {
   assert.equal(pickOwned(list, 'Blood Bag : O+').faction, true);
   assert.equal(pickOwned(list, 'Speed').faction, false);
   assert.equal(pickOwned(list, 'Blood Bag : A+'), null);
+});
+
+// REQ-003 #1, #4: packing needs at least $1,000,000 in hand; exactly $1,000,000 still packs.
+test('isLowCash blocks packing below $1,000,000 only', () => {
+  assert.equal(isLowCash(1390), true);
+  assert.equal(isLowCash(999999), true);
+  assert.equal(isLowCash(1000000), false);
+  assert.equal(isLowCash(25000000), false);
+  assert.equal(isLowCash(NaN), false);
+});
+
+// REQ-003 #5: entering the agency with low cash alerts; blocked triggers after that do not alert again.
+test('lowCashStep alerts once on entering the agency with low cash', () => {
+  assert.equal(lowCashStep({ entered: true, cash: 1390, alerted: false }), 'alert');
+  assert.equal(lowCashStep({ entered: false, cash: 1390, alerted: true }), null);
+  assert.equal(lowCashStep({ entered: false, cash: 1390, alerted: false }), null);
+  assert.equal(lowCashStep({ entered: true, cash: 1000000, alerted: false }), null);
+  assert.equal(lowCashStep({ entered: true, cash: NaN, alerted: false }), null);
+});
+
+// REQ-003 #6: the red background clears once cash is back to $1,000,000 or more.
+test('lowCashStep clears the alert when cash reaches $1,000,000', () => {
+  assert.equal(lowCashStep({ entered: false, cash: 1000000, alerted: true }), 'clear');
+  assert.equal(lowCashStep({ entered: false, cash: 999999, alerted: true }), null);
+  assert.equal(lowCashStep({ entered: false, cash: NaN, alerted: true }), null);
+  assert.equal(lowCashStep({ entered: false, cash: 1000000, alerted: false }), null);
 });
 
 // REQ-001 #11: Torn's HTML reply is shown as plain text, with the cooldown counter filled in.

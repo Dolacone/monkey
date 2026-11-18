@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn: Quick Purchase
 // @namespace    quick-purchase
-// @version      1.5.1
+// @version      1.5.2
 // @description  Alert when any target abroad item restocks; each click on the travel message bar (or q / space) packs at the travel agency, self-hosps in flight, and abroad meds out, sells the packed item, and buys the targets in order
 // @author       Dolacone
 // @match        https://www.torn.com/page.php?sid=travel*
@@ -86,6 +86,21 @@
     return named.find((e) => e.faction) || named[0] || null;
   }
 
+  // ---- Low cash at the agency (REQ-003 #4-6) ----
+
+  const MIN_CASH = 1000000;
+
+  // An unreadable cash value (NaN) neither blocks nor clears.
+  function isLowCash(cash) {
+    return cash < MIN_CASH;
+  }
+
+  function lowCashStep({ entered, cash, alerted }) {
+    if (entered && isLowCash(cash)) return 'alert';
+    if (alerted && cash >= MIN_CASH) return 'clear';
+    return null;
+  }
+
   // ---- Torn replies (REQ-001 #11) ----
 
   function formatDuration(seconds) {
@@ -122,7 +137,7 @@
   }
 
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { withDefaults, packageSettings, parseTargets, parseStock, isRestock, checkRestock, packStep, abroadStep, buyPlan, pickOwned, messageText, isTriggerKey };
+    module.exports = { withDefaults, packageSettings, parseTargets, parseStock, isRestock, checkRestock, packStep, abroadStep, buyPlan, pickOwned, isLowCash, lowCashStep, messageText, isTriggerKey };
     return;
   }
 
@@ -133,6 +148,7 @@
   const AGENCY_BAR = '.qp-bar';
   const ROWS = "[class*='stockTableWrapper___'] li";
   const INVENTORY = "ul[aria-label^='Inventory']";
+  const CASH = '#user-money';
 
   const style = document.createElement('style');
   style.textContent =
@@ -164,6 +180,8 @@
   let cfg = loadSettings();
   let lastStock = {};
   let alerted = false;
+  let cashAlerted = false;
+  let wasAgency = false;
   let bodyBackground = '';
 
   function saveSettings(next) {
@@ -213,19 +231,47 @@
     return cell ? parseStock(cell.textContent) : null;
   }
 
-  function startAlert() {
-    if (!alerted) bodyBackground = document.body.style.backgroundColor;
-    alerted = true;
-    document.body.style.backgroundColor = 'red';
-    document.querySelector(BAR)?.classList.add('qp-green');
+  function readCash() {
+    return Number(document.querySelector(CASH)?.dataset.money);
+  }
+
+  function ping() {
     sound.play().catch((err) => console.log('[QuickPurchase] sound blocked', err));
+  }
+
+  // The restock and low-cash alerts share one red background; the original color returns when neither holds it.
+  function paintRed() {
+    if (!alerted && !cashAlerted) bodyBackground = document.body.style.backgroundColor;
+    document.body.style.backgroundColor = 'red';
+  }
+
+  function unpaintRed() {
+    if (!alerted && !cashAlerted) document.body.style.backgroundColor = bodyBackground;
+  }
+
+  function startAlert() {
+    paintRed();
+    alerted = true;
+    document.querySelector(BAR)?.classList.add('qp-green');
+    ping();
   }
 
   function clearAlert() {
     if (!alerted) return;
     alerted = false;
-    document.body.style.backgroundColor = bodyBackground;
+    unpaintRed();
     document.querySelector(BAR)?.classList.remove('qp-green');
+  }
+
+  function startCashAlert() {
+    paintRed();
+    cashAlerted = true;
+    ping();
+  }
+
+  function clearCashAlert() {
+    cashAlerted = false;
+    unpaintRed();
   }
 
   // ---- Requests ----
@@ -261,6 +307,8 @@
   // ---- Actions ----
 
   async function runAgency() {
+    const cash = readCash();
+    if (isLowCash(cash)) return show(`PACK: blocked, cash $${cash.toLocaleString('en-US')} < $${MIN_CASH.toLocaleString('en-US')}`);
     const slots = await bagSlots();
     const names = slots.filter((s) => s.item).map((s) => s.item.name);
     const step = packStep(names, slots.filter((s) => !s.item).length, cfg);
@@ -395,6 +443,11 @@
   function onMutation() {
     renderSettings();
     renderAgencyBar();
+    const here = atAgency();
+    const cashStep = lowCashStep({ entered: here && !wasAgency, cash: readCash(), alerted: cashAlerted });
+    wasAgency = here;
+    if (cashStep === 'alert') startCashAlert();
+    else if (cashStep === 'clear') clearCashAlert();
     const bar = document.querySelector(BAR);
     if (!bar) return;
     if (alerted) bar.classList.add('qp-green');
