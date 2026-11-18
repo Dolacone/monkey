@@ -20,7 +20,7 @@
 - 網站呼叫排程函式、而且候選中有優先組合航班時，腳本重算計畫，並在下一個 animation frame 重繪面板。
 - `setInterval` 每 30 秒重繪面板。
 - `setInterval` 每 120 秒重新讀取 DM 狀態、藥物冷卻和飛行狀態。
-- 每次排程和目的地篩選時，重新讀取 `localStorage` 的 `uipref_dp_favorites` 作為優先組合。
+- 每次排程時，重新讀取 `localStorage` 的 `uipref_dp_favorites` 作為優先組合。
 - 面板的 shadow root 監聽 `change`（勾選框）和 `click`（按鈕）。
 
 ## 補丁表
@@ -30,7 +30,6 @@
 | `249186.X` | planDay(args) | 排程補丁 |
 | `249186.T` | buildCandidates(sources, opts) | 記錄攜帶量與提早抵達設定 |
 | `249186.p` | checkTrips(trips, args, busy) | 可飛判斷補丁 |
-| `460344.d` | applySourceFilters(sources, opts) | 目的地篩選補丁 |
 
 - 腳本只替換格式為 `[名稱, 0, 函式]` 的 export 項目。
 - 補丁名稱對應 `requirements/GLOSSARY.md`。
@@ -69,6 +68,6 @@
 
 - 模組 id 與 export 名稱是網站目前 build 的值。
   - 網站重新 build 後可能改變。
-  - `window.__tiPriority.patched` 少於 4 項時，到網站新的 chunk 找回對應的模組與 export。
+  - `window.__tiPriority.patched` 少於 3 項時，到網站新的 chunk 找回對應的模組與 export。
 - 立即航班以航班 id 結尾為 `:now` 判斷。
 - `uipref_dp_favorites` 是網站 `prefs.dp_favorites` 的本機副本，key 名稱由網站決定。

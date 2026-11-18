@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Torn Intel planner priority
-// @version      1.1.0
+// @version      1.1.1
 // @match        https://torn-intel.com/*
 // @downloadURL  https://raw.githubusercontent.com/Dolacone/monkey/refs/heads/master/torn-intel-planner/torn-intel-priority.user.js
 // @updateURL    https://raw.githubusercontent.com/Dolacone/monkey/refs/heads/master/torn-intel-planner/torn-intel-priority.user.js
@@ -11,7 +11,6 @@
 (() => {
   // Turbopack module ids and export names in torn-intel's current build.
   const PLAN_MODULE = 249186; // "X" planDay(args), "T" buildCandidates(sources, opts), "p" checkTrips(trips, args, busy)
-  const FILTER_MODULE = 460344; // "d" applySourceFilters(sources, opts)
 
   const SELECTION_KEY = "tiPrioritySelection";
   const PINS_KEY = "uipref_dp_favorites";
@@ -42,7 +41,6 @@
     patched: [],
     replan: null,
     checkTrips: null,
-    flightBook: false,
     carry: 0,
     carryMultiplierAt: () => 1,
     arriveEarlyMin: 0,
@@ -123,18 +121,6 @@
     }
     scheduleRender();
     return result;
-  };
-
-  // Pinned pairs stay in the plan even when their country is switched off in the destination filter.
-  const wrapFilter = (applyFilters) => (sources, opts) => {
-    state.flightBook = !!opts.flightBook;
-    const pins = loadPins();
-    const disabled = new Set(opts.disabledCountries ?? []);
-    const kept = applyFilters(sources, {
-      ...opts,
-      disabledCountries: [...disabled].filter((code) => !pins.some((p) => p.country === code)),
-    });
-    return kept.filter((s) => !disabled.has(s.country) || isPinned(pins, s));
   };
 
   const wrapBuildCandidates = (build) => (sources, opts) => {
@@ -233,7 +219,7 @@
     kind,
     leadMinutes: state.leadMinutes,
     ticketType: state.view?.feasible[0]?.ticket ?? "airstrip",
-    flightBook: state.flightBook,
+    flightBook: false,
     carryingQty: state.carry * state.carryMultiplierAt(Date.now()),
     arriveEarlySec: Math.round(60 * state.arriveEarlyMin),
     arriveEarlyOverrides: state.arriveEarlyOverrides,
@@ -508,7 +494,6 @@
 
   const EXPORT_PATCHES = {
     [PLAN_MODULE]: { X: wrapPlanDay, T: wrapBuildCandidates, p: keepCheckTrips },
-    [FILTER_MODULE]: { d: wrapFilter },
   };
 
   const patchExportList = (list, patches, moduleId) => {

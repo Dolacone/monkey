@@ -8,9 +8,8 @@
 
 1. 以 userscript 形式安裝在 Tampermonkey，在 torn-intel.com 所有頁面載入的最開始執行。
 2. `@downloadURL` 與 `@updateURL` 都指向 GitHub master branch 的 `torn-intel-planner/torn-intel-priority.user.js` raw URL。
-3. 生效時，console 的 `window.__tiPriority.patched` 列出 4 項。
-4. `patched` 少於 4 項，表示網站改版、補丁失效。
+3. 生效時，console 的 `window.__tiPriority.patched` 列出 3 項。
+4. `patched` 少於 3 項，表示網站改版、補丁失效。
 5. 排程補丁失效時，不顯示面板，網站計畫不套用優先組合排程。
 6. 排程補丁生效、其他補丁失效時，面板仍然顯示。
 7. 可飛判斷補丁失效時，面板也列出不符合網站限制的航班。
-8. 目的地篩選補丁失效時，目的地篩選關掉優先組合的國家，會讓該優先組合離開網站計畫。

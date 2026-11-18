@@ -8,7 +8,6 @@
 | 立即航班 | 買國外目前庫存、不等補貨的航班，沒有補貨時間 |
 | 排程補丁 | 替換網站排程函式的補丁 |
 | 可飛判斷補丁 | 取得網站航班限制檢查的補丁 |
-| 目的地篩選補丁 | 替換網站目的地篩選的補丁 |
 | 網站計畫 | torn-intel Departure Planner 排出的當天行程（時間軸與 Trips） |
 | leave DM | 出發前的 Discord 提醒，即使用者說的 FLIGHT DM |
 | restock DM | 補貨時的 Discord 提醒 |
