@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn: Quick Purchase
 // @namespace    quick-purchase
-// @version      1.5.2
+// @version      1.5.3
 // @description  Alert when any target abroad item restocks; each click on the travel message bar (or q / space) packs at the travel agency, self-hosps in flight, and abroad meds out, sells the packed item, and buys the targets in order
 // @author       Dolacone
 // @match        https://www.torn.com/page.php?sid=travel*
@@ -95,10 +95,13 @@
     return cash < MIN_CASH;
   }
 
-  function lowCashStep({ entered, cash, alerted }) {
-    if (entered && isLowCash(cash)) return 'alert';
-    if (alerted && cash >= MIN_CASH) return 'clear';
-    return null;
+  // Entering the agency counts only once cash is readable.
+  function lowCashStep({ wasAgency, here, cash, alerted }) {
+    if (Number.isNaN(cash)) return { step: null, wasAgency };
+    let step = null;
+    if (here && !wasAgency && isLowCash(cash)) step = 'alert';
+    else if (alerted && cash >= MIN_CASH) step = 'clear';
+    return { step, wasAgency: here };
   }
 
   // ---- Torn replies (REQ-001 #11) ----
@@ -443,9 +446,9 @@
   function onMutation() {
     renderSettings();
     renderAgencyBar();
-    const here = atAgency();
-    const cashStep = lowCashStep({ entered: here && !wasAgency, cash: readCash(), alerted: cashAlerted });
-    wasAgency = here;
+    const cashCheck = lowCashStep({ wasAgency, here: atAgency(), cash: readCash(), alerted: cashAlerted });
+    wasAgency = cashCheck.wasAgency;
+    const cashStep = cashCheck.step;
     if (cashStep === 'alert') startCashAlert();
     else if (cashStep === 'clear') clearCashAlert();
     const bar = document.querySelector(BAR);

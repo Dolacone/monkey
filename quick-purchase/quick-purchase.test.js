@@ -121,19 +121,25 @@ test('isLowCash blocks packing below $1,000,000 only', () => {
 
 // REQ-003 #5: entering the agency with low cash alerts; blocked triggers after that do not alert again.
 test('lowCashStep alerts once on entering the agency with low cash', () => {
-  assert.equal(lowCashStep({ entered: true, cash: 1390, alerted: false }), 'alert');
-  assert.equal(lowCashStep({ entered: false, cash: 1390, alerted: true }), null);
-  assert.equal(lowCashStep({ entered: false, cash: 1390, alerted: false }), null);
-  assert.equal(lowCashStep({ entered: true, cash: 1000000, alerted: false }), null);
-  assert.equal(lowCashStep({ entered: true, cash: NaN, alerted: false }), null);
+  assert.deepEqual(lowCashStep({ wasAgency: false, here: true, cash: 1390, alerted: false }), { step: 'alert', wasAgency: true });
+  assert.deepEqual(lowCashStep({ wasAgency: true, here: true, cash: 1390, alerted: true }), { step: null, wasAgency: true });
+  assert.deepEqual(lowCashStep({ wasAgency: false, here: false, cash: 1390, alerted: false }), { step: null, wasAgency: false });
+  assert.deepEqual(lowCashStep({ wasAgency: false, here: true, cash: 1000000, alerted: false }), { step: null, wasAgency: true });
+});
+
+// REQ-003 #5: on page load the agency panel can render before the sidebar cash; the entry still alerts once cash shows.
+test('lowCashStep holds the agency entry until cash is readable', () => {
+  const loading = lowCashStep({ wasAgency: false, here: true, cash: NaN, alerted: false });
+  assert.deepEqual(loading, { step: null, wasAgency: false });
+  assert.deepEqual(lowCashStep({ wasAgency: loading.wasAgency, here: true, cash: 130865, alerted: false }), { step: 'alert', wasAgency: true });
 });
 
 // REQ-003 #6: the red background clears once cash is back to $1,000,000 or more.
 test('lowCashStep clears the alert when cash reaches $1,000,000', () => {
-  assert.equal(lowCashStep({ entered: false, cash: 1000000, alerted: true }), 'clear');
-  assert.equal(lowCashStep({ entered: false, cash: 999999, alerted: true }), null);
-  assert.equal(lowCashStep({ entered: false, cash: NaN, alerted: true }), null);
-  assert.equal(lowCashStep({ entered: false, cash: 1000000, alerted: false }), null);
+  assert.equal(lowCashStep({ wasAgency: true, here: true, cash: 1000000, alerted: true }).step, 'clear');
+  assert.equal(lowCashStep({ wasAgency: true, here: true, cash: 999999, alerted: true }).step, null);
+  assert.equal(lowCashStep({ wasAgency: true, here: true, cash: NaN, alerted: true }).step, null);
+  assert.equal(lowCashStep({ wasAgency: true, here: true, cash: 1000000, alerted: false }).step, null);
 });
 
 // REQ-001 #11: Torn's HTML reply is shown as plain text, with the cooldown counter filled in.

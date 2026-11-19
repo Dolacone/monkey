@@ -44,6 +44,8 @@ Selectors, request formats, and stored keys are in `quick-purchase.md`.
   - 每次觸發與每次 DOM 變動都重讀。
   - 讀不到時當成未知，不擋打包，也不提醒或解除。
 - 「進入旅行社」是 `atAgency()` 由否轉是的那一次 DOM 變動，含頁面載入。
+  - 讀不到現金的變動不算，等到第一次讀得到現金的變動才判定。
+  - 頁面載入時，背包面板比 `#user-money` 早出現 30 到 60 ms。
 - 補貨提醒與現金不足提醒共用紅色背景。
   - 第一個提醒記下原本背景色。
   - 兩個提醒都解除後才恢復。
@@ -81,12 +83,15 @@ Selectors, request formats, and stored keys are in `quick-purchase.md`.
   - 日本住院中讀 DOM：訊息列與商店列表仍在。
   - 出院、賣出、購買：使用者以 v1.2.0 在日本實際完成。
   - 現金來源：飛往日本途中，Chrome 旅行頁的 `#user-money` 有 `data-money="1390"`，與顯示的 `$1,390` 相同。
+    - 654px 寬的手機排版也有 `#user-money`，元素出現時已帶 `data-money`。
+  - 旅行社現金不足時擋下觸發：654px 寬時點擊訊息列與按 `q` 都顯示 `PACK: blocked`，沒有送出打包 request。
+  - 載入時的提醒：654px 與 1300px 寬的 iframe 各載入一次以上，背包面板都比 `#user-money` 早出現。
+    - 同一份 DOM 順序下，`lowCashStep` 在現金出現的那次變動提醒一次。
 - 尚未檢查：
   - 設定面板與 `Load package`。
   - 旅行社點擊訊息列打包。
   - 飛行中點擊訊息列入院。
   - 出院後不重新整理頁面時，`body[data-layout]` 是否變回非住院。
   - 多個目標商品：任一補貨的提醒、依序購買、數量小於空格數的 `buy`。
-  - 旅行社現金不足：進入時的提醒、擋下觸發、現金回到 $1,000,000 以上時恢復背景。
+  - 旅行社現金不足：現金回到 $1,000,000 以上時恢復背景。
   - 不重新整理頁面時，`#user-money` 的 `data-money` 是否隨現金即時更新。
-  - 手機版排版是否有 `#user-money`。

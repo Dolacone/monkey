@@ -32,6 +32,7 @@ Run with `node --test` in this folder.
   - 讀不到現金時不擋。
 - `lowCashStep`（REQ-003 條件 5、6）：
   - 進入旅行社且現金不足時提醒，之後被擋的觸發不再提醒。
+  - 背包面板比現金早出現時，等讀得到現金再判定進入旅行社。
   - 現金回到 $1,000,000 以上時解除，仍不足時不解除。
 - `messageText`（REQ-001 條件 11）：`useItem` 實際回應的 HTML 轉成純文字，冷卻 13714 秒顯示為 `3h 48m`。
 - `isTriggerKey`（REQ-001 條件 5-8）：
