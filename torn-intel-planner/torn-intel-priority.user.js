@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Torn Intel planner priority
-// @version      1.1.3
+// @version      1.2.0
 // @match        https://torn-intel.com/*
 // @downloadURL  https://raw.githubusercontent.com/Dolacone/monkey/refs/heads/master/torn-intel-planner/torn-intel-priority.user.js
 // @updateURL    https://raw.githubusercontent.com/Dolacone/monkey/refs/heads/master/torn-intel-planner/torn-intel-priority.user.js
@@ -42,6 +42,7 @@
   const isPinned = (pins, c) => pins.some((p) => p.country === c.country && p.itemId === c.itemId);
   const byLeaveThenBack = (a, b) => a.departAt - b.departAt || a.returnAt - b.returnAt;
   const perHour = (t) => t.profit / ((t.returnAt - t.departAt) / 3600e3);
+  const isProfitable = (t) => t.profit > 0;
   const destOf = (country) => COUNTRY_ABBR[country] ?? country.toUpperCase();
   const hm = (ms) => new Date(ms).toTimeString().slice(0, 5);
   const money = (v) => (Math.abs(v) >= 1e6 ? `$${(v / 1e6).toFixed(1)}M` : `$${Math.round(v / 1e3)}k`);
@@ -64,7 +65,7 @@
   const inFlight = (c, at) => at !== null && c.departAt <= at && at < c.returnAt;
 
   if (typeof module !== "undefined" && module.exports) {
-    module.exports = { pinsFrom, isPinned, byLeaveThenBack, perHour, destOf, money, statusText, lineIndex, inFlight };
+    module.exports = { pinsFrom, isPinned, byLeaveThenBack, perHour, isProfitable, destOf, money, statusText, lineIndex, inFlight };
     return;
   }
 
@@ -454,7 +455,7 @@
   };
 
   const listHtml = (view) => {
-    const rows = view.feasible.filter((c) => inPeriod(c, view));
+    const rows = view.feasible.filter((c) => isProfitable(c) && inPeriod(c, view));
     if (!rows.length) {
       return `<p class="empty">${view.periodEnd === null ? "No flight fits in the next 24h" : `No flight fits before ${hm(view.periodEnd)}`}</p>`;
     }

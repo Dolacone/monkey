@@ -35,7 +35,7 @@ Module ids, request formats, and stored keys are in `torn-intel-priority.user.md
 
 ## 測試範圍
 
-- `torn-intel-priority.user.test.js` 涵蓋：優先組合比對、列表排序、$/h、DEST 縮寫、header 狀態文字、Xanax 與 OC 線的位置、OC 標色範圍。
+- `torn-intel-priority.user.test.js` 涵蓋：優先組合比對、列表排序、只列利潤大於 0 的航班、$/h、DEST 縮寫、header 狀態文字、Xanax 與 OC 線的位置、OC 標色範圍。
 - 以下在 torn-intel 實際頁面手動確認：
   - 模組補丁是否生效（`window.__tiPriority.patched`）。
   - 排程結果和面板版面。

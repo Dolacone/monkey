@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 
-const { pinsFrom, isPinned, byLeaveThenBack, perHour, destOf, money, statusText, lineIndex, inFlight } = require('./torn-intel-priority.user.js');
+const { pinsFrom, isPinned, byLeaveThenBack, perHour, isProfitable, destOf, money, statusText, lineIndex, inFlight } = require('./torn-intel-priority.user.js');
 
 const at = (h, m) => new Date(2026, 10, 18, h, m).getTime();
 const trip = (country, itemId, leave, back, profit = 0) => ({ country, itemId, departAt: leave, returnAt: back, profit });
@@ -23,6 +23,13 @@ test('isPinned needs the same country and the same item', () => {
   assert.equal(isPinned(pins, trip('haw', 1485)), true);
   assert.equal(isPinned(pins, trip('can', 206)), false);
   assert.equal(isPinned(pins, trip('haw', 1486)), false);
+});
+
+// REQ-002 #9: only trips that earn money are listed; a zero or losing trip is hidden.
+test('isProfitable keeps trips with profit above zero only', () => {
+  assert.equal(isProfitable(trip('can', 206, at(12, 0), at(12, 38), 1.4e6)), true);
+  assert.equal(isProfitable(trip('can', 206, at(12, 0), at(12, 38), 0)), false);
+  assert.equal(isProfitable(trip('uni', 206, at(12, 0), at(14, 32), -2e5)), false);
 });
 
 // REQ-002 #9: one mixed list ordered by LEAVE, then by BACK.
