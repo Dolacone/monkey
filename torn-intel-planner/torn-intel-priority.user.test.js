@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 
-const { pinsFrom, isPinned, byLeaveThenBack, isProfitable, destOf, money, profitText, statusText, lineIndex, inFlight } = require('./torn-intel-priority.user.js');
+const { pinsFrom, isPinned, byLeaveThenBack, isProfitable, destOf, money, profitText, statusText, lineIndex, inFlight, dmTone } = require('./torn-intel-priority.user.js');
 
 const at = (h, m) => new Date(2026, 10, 18, h, m).getTime();
 const trip = (country, itemId, leave, back, profit = 0) => ({ country, itemId, departAt: leave, returnAt: back, profit });
@@ -60,7 +60,7 @@ test('destOf shows the country abbreviation', () => {
   assert.equal(destOf('haw'), 'HAW');
 });
 
-// REQ-002 #17: the header shows the flight arrival, the latest return when abroad, or in Torn.
+// REQ-002 #16: the header shows the flight arrival, the latest return when abroad, or in Torn.
 test('statusText shows the flight arrival, the latest return when abroad, or in Torn', () => {
   assert.equal(statusText({ traveling: true, name: 'Torn', arrivalAt: at(11, 12) }, 'wlt', at(10, 0)), 'Torn at 11:12');
   assert.equal(statusText({ traveling: true, name: 'Hawaii', arrivalAt: at(12, 30) }, 'wlt', at(11, 30)), 'Hawaii at 12:30');
@@ -92,4 +92,13 @@ test('inFlight is true from LEAVE up to, but not including, BACK', () => {
   assert.equal(inFlight(t, at(18, 29)), false);
   assert.equal(inFlight(t, at(14, 39)), false);
   assert.equal(inFlight(t, null), false);
+});
+
+// REQ-004 #7, #8, #9: a selected trip turns blue with both DMs, red after a failed set or with one DM only, plain otherwise.
+test('dmTone colours the row by the DM state of a selected trip', () => {
+  assert.equal(dmTone(2, false), 'dm-on');
+  assert.equal(dmTone(2, true), 'dm-on');
+  assert.equal(dmTone(1, false), 'dm-failed');
+  assert.equal(dmTone(0, true), 'dm-failed');
+  assert.equal(dmTone(0, false), '');
 });

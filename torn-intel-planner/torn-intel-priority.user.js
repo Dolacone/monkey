@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Torn Intel planner priority
-// @version      1.3.0
+// @version      1.3.1
 // @match        https://torn-intel.com/*
 // @downloadURL  https://raw.githubusercontent.com/Dolacone/monkey/refs/heads/master/torn-intel-planner/torn-intel-priority.user.js
 // @updateURL    https://raw.githubusercontent.com/Dolacone/monkey/refs/heads/master/torn-intel-planner/torn-intel-priority.user.js
@@ -65,9 +65,10 @@
     return index;
   };
   const inFlight = (c, at) => at !== null && c.departAt <= at && at < c.returnAt;
+  const dmTone = (armedCount, failed) => (armedCount === DM_KINDS.length ? "dm-on" : armedCount > 0 || failed ? "dm-failed" : "");
 
   if (typeof module !== "undefined" && module.exports) {
-    module.exports = { pinsFrom, isPinned, byLeaveThenBack, isProfitable, destOf, money, profitText, statusText, lineIndex, inFlight };
+    module.exports = { pinsFrom, isPinned, byLeaveThenBack, isProfitable, destOf, money, profitText, statusText, lineIndex, inFlight, dmTone };
     return;
   }
 
@@ -81,6 +82,7 @@
     arriveEarlyOverrides: {},
     view: null,
     armed: { leave: [], restock: [] },
+    dmFailed: new Set(),
     playerId: null,
     drugReadyAt: null,
     ocAt: null,
@@ -194,11 +196,17 @@
     render();
     if (selected) {
       const armed = armedKindsOf(trip);
-      if (armed.length === 0 || (await syncTripDms(trip, armed, false))) setSelected(trip, false);
+      if (armed.length === 0 || (await syncTripDms(trip, armed, false))) {
+        setSelected(trip, false);
+        state.dmFailed.delete(id);
+      }
     } else {
       setSelected(trip, true);
       render();
-      if (Number.isFinite(trip.restockAt)) await syncTripDms(trip, DM_KINDS.filter((kind) => !alertFor(trip, kind)), true);
+      if (Number.isFinite(trip.restockAt)) {
+        if (await syncTripDms(trip, DM_KINDS.filter((kind) => !alertFor(trip, kind)), true)) state.dmFailed.delete(id);
+        else state.dmFailed.add(id);
+      }
     }
     state.message ||= "Site timeline follows within a minute.";
     state.busy = false;
@@ -350,29 +358,17 @@
         failed.push(kind);
       }
     }
-    if (failed.length && !state.message) state.message = `Could not ${on ? "set" : "cancel"} the ${failed.join(" and ")} DM. Click DM to retry.`;
+    if (failed.length && !state.message) {
+      state.message = `Could not ${on ? "set" : "cancel"} the ${failed.join(" and ")} DM. ${on ? "Uncheck and check again" : "Uncheck"} to retry.`;
+    }
     return failed.length === 0;
-  };
-
-  // Sets the missing DM kinds; when every kind is already set, cancels all of them.
-  const toggleAlert = async (id) => {
-    const trip = state.view?.chosen.find((t) => t.id === id);
-    if (!trip || !Number.isFinite(trip.restockAt) || state.busy) return;
-    const armedKinds = armedKindsOf(trip);
-    const turnOff = armedKinds.length === DM_KINDS.length;
-    state.busy = true;
-    state.message = "";
-    render();
-    await syncTripDms(trip, turnOff ? DM_KINDS : DM_KINDS.filter((kind) => !armedKinds.includes(kind)), !turnOff);
-    state.busy = false;
-    render();
   };
 
   // Panel
 
   const CSS = `
     :host { all: initial; }
-    .panel { width: 440px; max-height: 70vh; display: flex; flex-direction: column; overflow: hidden;
+    .panel { width: 350px; max-height: 70vh; display: flex; flex-direction: column; overflow: hidden;
       font: 12px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; color: #e5e7eb;
       background: #0f172a; border: 1px solid #334155; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,.45); }
     header { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid #1e293b; }
@@ -383,25 +379,25 @@
     .body { overflow: auto; }
     section { padding: 8px 12px; border-bottom: 1px solid #1e293b; }
     ul { list-style: none; margin: 0; padding: 0; }
-    .row { display: grid; grid-template-columns: 1fr 106px 92px; align-items: center; gap: 8px; padding: 3px 0; color: #94a3b8; }
+    .row { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 6px; margin: 1px 0; padding: 2px 4px;
+      border: 1px solid transparent; border-radius: 6px; color: #94a3b8; }
     .row.on { color: #f8fafc; }
     .row.clash { opacity: .45; }
+    .row.dm-on { background: rgba(37, 99, 235, .25); border-color: #3b82f6; }
+    .row.dm-failed { background: rgba(220, 38, 38, .22); border-color: #ef4444; }
     label, .cols { display: grid; grid-template-columns: 16px 32px repeat(3, 38px); align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
     label { cursor: pointer; }
     .dest { color: #cbd5e1; font-weight: 600; }
     .buy { color: #64748b; }
     .head { color: #64748b; font-size: 10px; text-transform: uppercase; letter-spacing: .04em; }
     .head .profit { color: inherit; }
-    .xanax { display: flex; align-items: center; gap: 8px; padding: 2px 0 2px 22px; color: #ea580c; font-weight: 600; font-variant-numeric: tabular-nums; }
+    .xanax { display: flex; align-items: center; gap: 8px; padding: 2px 0 2px 27px; color: #ea580c; font-weight: 600; font-variant-numeric: tabular-nums; }
     .xanax::after { content: ""; flex: 1; border-top: 1px dashed #ea580c; opacity: .6; }
     .xan { color: #ea580c; font-weight: 600; }
-    .ocline { display: flex; align-items: center; gap: 8px; padding: 2px 0 2px 22px; color: #a855f7; font-weight: 600; font-variant-numeric: tabular-nums; }
+    .ocline { display: flex; align-items: center; gap: 8px; padding: 2px 0 2px 27px; color: #a855f7; font-weight: 600; font-variant-numeric: tabular-nums; }
     .ocline::after { content: ""; flex: 1; border-top: 1px dashed #a855f7; opacity: .6; }
     .oc { color: #a855f7; font-weight: 600; }
-    .profit { text-align: right; white-space: nowrap; color: #34d399; font-variant-numeric: tabular-nums; }
-    .act { text-align: right; font-size: 11px; color: #64748b; }
-    .dm.armed { background: #1d4ed8; border-color: #3b82f6; }
-    .dm.partial { border-color: #f59e0b; color: #fbbf24; }
+    .profit { white-space: nowrap; color: #34d399; font-variant-numeric: tabular-nums; }
     .empty { margin: 0; color: #64748b; }
     footer { display: grid; gap: 2px; padding: 8px 12px; }
     .hint { color: #64748b; font-size: 11px; }
@@ -418,16 +414,12 @@
       (t) => t.id !== c.id && c.departAt < t.returnAt + view.restMs && t.departAt - view.restMs < c.returnAt,
     ) ?? null;
 
-  const DM_LABELS = { 0: "DM", 1: { leave: "Leave only", restock: "Restock only" }, 2: "DM on" };
-
   const inPeriod = (t, view) => view.periodEnd === null || t.departAt < view.periodEnd;
 
   const rowHtml = (c, view) => {
     const selected = view.chosen.some((t) => t.id === c.id);
     const clash = selected ? null : conflictOf(c, view);
-    const armedKinds = selected ? armedKindsOf(c) : [];
-    const label = armedKinds.length === 1 ? DM_LABELS[1][armedKinds[0]] : DM_LABELS[armedKinds.length];
-    const tone = armedKinds.length === DM_KINDS.length ? " armed" : armedKinds.length ? " partial" : "";
+    const tone = selected ? dmTone(armedKindsOf(c).length, state.dmFailed.has(c.id)) : "";
     const xanaxAt = state.drugReadyAt;
     const leaveTone = xanaxAt !== null && c.departAt <= xanaxAt && xanaxAt < c.buyAt ? ' class="xan"' : "";
     const backClasses = [
@@ -435,21 +427,15 @@
       inFlight(c, state.ocAt) ? "oc" : "",
     ].filter(Boolean);
     const backTone = backClasses.length ? ` class="${backClasses.join(" ")}"` : "";
-    const action = selected && Number.isFinite(c.restockAt)
-      ? `<button class="dm${tone}" data-act="dm" data-id="${c.id}"${state.busy ? " disabled" : ""}>${label}</button>`
-      : clash
-      ? `overlaps ${hm(clash.departAt)}`
-      : "";
-    return `<li class="row${selected ? " on" : ""}${clash ? " clash" : ""}">
+    return `<li class="row${selected ? " on" : ""}${clash ? " clash" : ""}${tone ? ` ${tone}` : ""}">
       <label><input type="checkbox" data-act="trip" data-id="${c.id}"${selected ? " checked" : ""}${clash || state.busy ? " disabled" : ""}>
         <span class="dest">${destOf(c.country)}</span><span${leaveTone}>${hm(c.departAt)}</span><span class="buy">${hm(c.buyAt)}</span><span${backTone}>${hm(c.returnAt)}</span></label>
       <span class="profit">${profitText(c)}</span>
-      <span class="act">${action}</span>
     </li>`;
   };
 
   const HEAD_HTML = `<li class="row head"><span class="cols"><span></span><span>Dest</span><span>Leave</span><span>Buy</span><span>Back</span></span>
-    <span class="profit">Profit</span><span class="act"></span></li>`;
+    <span class="profit">Profit</span></li>`;
 
   const lineHtml = (cls, at, label) => {
     const now = Date.now();
@@ -508,7 +494,6 @@
     root.addEventListener("click", (e) => {
       const el = e.target.closest?.("button");
       if (!el) return;
-      if (el.dataset.act === "dm") toggleAlert(el.dataset.id);
       if (el.dataset.act === "auto") resetToAuto();
       if (el.dataset.act === "collapse") {
         state.collapsed = !state.collapsed;

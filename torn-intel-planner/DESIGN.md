@@ -33,9 +33,15 @@ Module ids, request formats, and stored keys are in `torn-intel-priority.user.md
   - `ticket` 取候選航班的 `ticket`，也就是 Departure Planner 所選的機票。
   - header 每 30 秒重繪，回程時間跟著現在時間更新。
 
+## REQ-004 — 設定失敗的紅底
+
+- 設定失敗的航班 id 存在記憶體的 `state.dmFailed`，不寫入 `localStorage`。
+  - 重新整理後清除，兩種都沒設的航班回到不加底色。
+- 取消勾選成功，或再次設定成功時，從 `state.dmFailed` 移除。
+
 ## 測試範圍
 
-- `torn-intel-priority.user.test.js` 涵蓋：優先組合比對、列表排序、只列利潤大於 0 的航班、PROFIT 文字、DEST 縮寫、header 狀態文字、Xanax 與 OC 線的位置、OC 標色範圍。
+- `torn-intel-priority.user.test.js` 涵蓋：優先組合比對、列表排序、只列利潤大於 0 的航班、PROFIT 文字、DEST 縮寫、header 狀態文字、Xanax 與 OC 線的位置、OC 標色範圍、DM 底色。
 - 以下在 torn-intel 實際頁面手動確認：
   - 模組補丁是否生效（`window.__tiPriority.patched`）。
   - 排程結果和面板版面。

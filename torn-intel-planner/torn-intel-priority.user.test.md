@@ -18,7 +18,9 @@ Run with `node --test` in this folder.
 - `destOf`（REQ-002 條件 5）：`jap` 顯示 `JPN`，`haw` 顯示 `HAW`。
 - `lineIndex`（REQ-005 條件 3、4，REQ-007 條件 3、4）：線放在 BUY 不晚於該時間的最後一列之後，沒有這種列時放在最前面，沒有時間時不放。
 - `inFlight`（REQ-007 條件 6）：OC 時間在 LEAVE（含）到 BACK（不含）之間才標色。
-- `statusText`（REQ-002 條件 17）：
+- `dmTone`（REQ-004 條件 7、8、9）：兩種 DM 都設好是藍底，設定失敗或只設好一種是紅底，其他不加底色。
+  - 兩種都設好時，即使先前失敗過也是藍底。
+- `statusText`（REQ-002 條件 16）：
   - 飛行中顯示目的地和抵達時間，例如 `Torn at 11:12`。
   - 人在國外顯示所在國家和最晚回程時間：Hawaii 的 WLT 在 14:25 出發顯示 `return at 15:28`，Japan 的 airstrip 顯示 `16:55`。
   - 人在 Torn 顯示 `in Torn`。
