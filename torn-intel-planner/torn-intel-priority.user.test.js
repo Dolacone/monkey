@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 
-const { pinsFrom, isPinned, byLeaveThenBack, perHour, isProfitable, destOf, money, statusText, lineIndex, inFlight } = require('./torn-intel-priority.user.js');
+const { pinsFrom, isPinned, byLeaveThenBack, isProfitable, destOf, money, profitText, statusText, lineIndex, inFlight } = require('./torn-intel-priority.user.js');
 
 const at = (h, m) => new Date(2026, 10, 18, h, m).getTime();
 const trip = (country, itemId, leave, back, profit = 0) => ({ country, itemId, departAt: leave, returnAt: back, profit });
@@ -42,10 +42,16 @@ test('byLeaveThenBack orders by leave time and breaks ties by back time', () => 
   assert.deepEqual(rows.sort(byLeaveThenBack).map((r) => r.itemId), [206, 1486, 1485]);
 });
 
-// REQ-002 #7: PROFIT is the trip profit per hour from LEAVE to BACK.
-test('perHour divides the trip profit by the LEAVE-to-BACK hours', () => {
-  assert.equal(money(perHour(trip('haw', 1485, at(12, 0), at(15, 0), 3e6))), '$1.0M');
-  assert.equal(money(perHour(trip('jap', 206, at(11, 37), at(15, 26), 4.7e6))), '$1.2M');
+// REQ-002 #7: PROFIT is the trip profit, then the profit per LEAVE-to-BACK hour in brackets.
+test('profitText shows the trip profit with the per-hour profit in brackets', () => {
+  assert.equal(profitText(trip('haw', 1485, at(12, 0), at(15, 0), 3e6)), '$3.0m (1.0m/h)');
+  assert.equal(profitText(trip('jap', 206, at(20, 0), at(22, 0), 1.262e6)), '$1.3m (631k/h)');
+});
+
+// REQ-002 #7: amounts use lower-case k and m, the footer total included.
+test('money writes thousands as k and millions as m', () => {
+  assert.equal(money(631e3), '$631k');
+  assert.equal(money(4.6e6), '$4.6m');
 });
 
 // REQ-002 #5: DEST is the country abbreviation only.

@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Torn Intel planner priority
-// @version      1.2.0
+// @version      1.3.0
 // @match        https://torn-intel.com/*
 // @downloadURL  https://raw.githubusercontent.com/Dolacone/monkey/refs/heads/master/torn-intel-planner/torn-intel-priority.user.js
 // @updateURL    https://raw.githubusercontent.com/Dolacone/monkey/refs/heads/master/torn-intel-planner/torn-intel-priority.user.js
@@ -45,7 +45,9 @@
   const isProfitable = (t) => t.profit > 0;
   const destOf = (country) => COUNTRY_ABBR[country] ?? country.toUpperCase();
   const hm = (ms) => new Date(ms).toTimeString().slice(0, 5);
-  const money = (v) => (Math.abs(v) >= 1e6 ? `$${(v / 1e6).toFixed(1)}M` : `$${Math.round(v / 1e3)}k`);
+  const amount = (v) => (Math.abs(v) >= 1e6 ? `${(v / 1e6).toFixed(1)}m` : `${Math.round(v / 1e3)}k`);
+  const money = (v) => `$${amount(v)}`;
+  const profitText = (t) => `${money(t.profit)} (${amount(perHour(t))}/h)`;
   const statusText = (travel, ticket, now) => {
     if (travel === null) return "";
     if (travel.traveling) return `${travel.name} at ${hm(travel.arrivalAt)}`;
@@ -65,7 +67,7 @@
   const inFlight = (c, at) => at !== null && c.departAt <= at && at < c.returnAt;
 
   if (typeof module !== "undefined" && module.exports) {
-    module.exports = { pinsFrom, isPinned, byLeaveThenBack, perHour, isProfitable, destOf, money, statusText, lineIndex, inFlight };
+    module.exports = { pinsFrom, isPinned, byLeaveThenBack, isProfitable, destOf, money, profitText, statusText, lineIndex, inFlight };
     return;
   }
 
@@ -370,7 +372,7 @@
 
   const CSS = `
     :host { all: initial; }
-    .panel { width: 390px; max-height: 70vh; display: flex; flex-direction: column; overflow: hidden;
+    .panel { width: 440px; max-height: 70vh; display: flex; flex-direction: column; overflow: hidden;
       font: 12px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; color: #e5e7eb;
       background: #0f172a; border: 1px solid #334155; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,.45); }
     header { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid #1e293b; }
@@ -381,7 +383,7 @@
     .body { overflow: auto; }
     section { padding: 8px 12px; border-bottom: 1px solid #1e293b; }
     ul { list-style: none; margin: 0; padding: 0; }
-    .row { display: grid; grid-template-columns: 1fr 56px 92px; align-items: center; gap: 8px; padding: 3px 0; color: #94a3b8; }
+    .row { display: grid; grid-template-columns: 1fr 106px 92px; align-items: center; gap: 8px; padding: 3px 0; color: #94a3b8; }
     .row.on { color: #f8fafc; }
     .row.clash { opacity: .45; }
     label, .cols { display: grid; grid-template-columns: 16px 32px repeat(3, 38px); align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
@@ -396,7 +398,7 @@
     .ocline { display: flex; align-items: center; gap: 8px; padding: 2px 0 2px 22px; color: #a855f7; font-weight: 600; font-variant-numeric: tabular-nums; }
     .ocline::after { content: ""; flex: 1; border-top: 1px dashed #a855f7; opacity: .6; }
     .oc { color: #a855f7; font-weight: 600; }
-    .profit { text-align: right; color: #34d399; font-variant-numeric: tabular-nums; }
+    .profit { text-align: right; white-space: nowrap; color: #34d399; font-variant-numeric: tabular-nums; }
     .act { text-align: right; font-size: 11px; color: #64748b; }
     .dm.armed { background: #1d4ed8; border-color: #3b82f6; }
     .dm.partial { border-color: #f59e0b; color: #fbbf24; }
@@ -441,7 +443,7 @@
     return `<li class="row${selected ? " on" : ""}${clash ? " clash" : ""}">
       <label><input type="checkbox" data-act="trip" data-id="${c.id}"${selected ? " checked" : ""}${clash || state.busy ? " disabled" : ""}>
         <span class="dest">${destOf(c.country)}</span><span${leaveTone}>${hm(c.departAt)}</span><span class="buy">${hm(c.buyAt)}</span><span${backTone}>${hm(c.returnAt)}</span></label>
-      <span class="profit">${money(perHour(c))}</span>
+      <span class="profit">${profitText(c)}</span>
       <span class="act">${action}</span>
     </li>`;
   };

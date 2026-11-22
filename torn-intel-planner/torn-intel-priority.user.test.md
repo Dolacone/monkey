@@ -14,7 +14,7 @@ Run with `node --test` in this folder.
   - 同物品不同國家、同國家不同物品都不算。
 - `byLeaveThenBack`（REQ-002 條件 9）：依 LEAVE 排序，LEAVE 相同時依 BACK 排序。
 - `isProfitable`（REQ-002 條件 9）：該趟利潤大於 0 才列出，利潤為 0 或負數的航班不列。
-- `perHour` 與 `money`（REQ-002 條件 7）：該趟利潤除以 LEAVE 到 BACK 的時數，3 小時 $3M 顯示 `$1.0M`。
+- `profitText` 與 `money`（REQ-002 條件 7）：該趟利潤加上括號內的每小時利潤，3 小時 $3m 顯示 `$3.0m (1.0m/h)`，金額單位是小寫 `k`、`m`。
 - `destOf`（REQ-002 條件 5）：`jap` 顯示 `JPN`，`haw` 顯示 `HAW`。
 - `lineIndex`（REQ-005 條件 3、4，REQ-007 條件 3、4）：線放在 BUY 不晚於該時間的最後一列之後，沒有這種列時放在最前面，沒有時間時不放。
 - `inFlight`（REQ-007 條件 6）：OC 時間在 LEAVE（含）到 BACK（不含）之間才標色。
