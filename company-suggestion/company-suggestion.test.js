@@ -1,7 +1,8 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 
-const { workingStats, management, predict, fromMultipliers, weakest, bestPair, suggest, isNightclub } = require('./company-suggestion.js');
+const { workingStats, management, predict, fromMultipliers, targetWeekday, trainerPick, gains, suggest, optionText, isNightclub } =
+  require('./company-suggestion.js');
 
 // Real Nightclub employees on company day 2026-11-05: live stats [manual labor, intelligence, endurance],
 // the position-independent carry, the management parts (settled_in + merits + book), addiction, and the in-game total.
@@ -26,16 +27,45 @@ const CURRENT = {
   FF357: 'Trainer',
 };
 
+// The same company on 2026-11-22 (Torn API), with the new hire BbLoup.
+const STAFF_1122 = {
+  Kyrax: { stats: [63057, 64982, 73616], carry: 5, parts: 10, addiction: -17 },
+  RMForever: { stats: [102583, 25178, 146862], carry: 5, parts: 11, addiction: -18 },
+  jadefish: { stats: [12656, 130997, 117140], carry: 32, parts: 20, addiction: 0 },
+  Aells_jia: { stats: [47439, 53530, 59635], carry: 11, parts: 20, addiction: -21 },
+  Saikoa: { stats: [22095, 1506, 41817], carry: 21, parts: 14, addiction: -5 },
+  Humerm: { stats: [16519, 27647, 40465], carry: 13, parts: 12, addiction: -11 },
+  Rulse: { stats: [16733, 9533, 33583], carry: 22, parts: 10, addiction: 0 },
+  Yaii: { stats: [11913, 11088, 25935], carry: 58, parts: 60, addiction: -14 },
+  bilioo: { stats: [12929, 10616, 27618], carry: 19, parts: 10, addiction: -3 },
+  V50: { stats: [22452, 20784, 28903], carry: 22, parts: 14, addiction: -4 },
+  FF357: { stats: [9500, 13671, 21293], carry: 19, parts: 10, addiction: -3 },
+  BbLoup: { stats: [4529, 2306, 3750], carry: 8, parts: 7, addiction: -11 },
+};
+
+const CURRENT_1122 = {
+  Kyrax: 'Bouncer', RMForever: 'Barback', jadefish: 'Manager', Aells_jia: 'Disk-jockey', Saikoa: 'Bartender',
+  Humerm: 'Bartender', Rulse: 'Bartender', Yaii: 'Bartender', bilioo: 'Bartender', V50: 'Bartender', FF357: 'Bartender',
+  BbLoup: 'Bartender',
+};
+
+const TUESDAY = 2;
+const SATURDAY = 6;
+
 function company(positions, staff = STAFF) {
   return Object.entries(positions).map(([name, position]) => ({ name, position, ...staff[name] }));
 }
 
-function moves(staff) {
-  const suggested = suggest(staff);
+function nov22(changes = {}, staff = STAFF_1122) {
+  return company({ ...CURRENT_1122, ...changes }, staff);
+}
+
+function moves(staff, weekday) {
+  const suggested = suggest(staff, weekday);
   return Object.fromEntries(staff.flatMap((e, k) => (suggested[k] === e.position ? [] : [[e.name, `${e.position} > ${suggested[k]}`]])));
 }
 
-test('REQ-002 #2: working stats match the in-game values (x1.2, each stat floored on its own)', () => {
+test('REQ-002 prediction: working stats match the in-game values (x1.2, each stat floored on its own)', () => {
   // Stats and values the game reported on 2026-10-15.
   const cases = [
     [[61350, 64982, 71861], 'Barback', 114], [[100808, 25178, 145227], 'Bouncer', 110], [[12656, 129788, 114722], 'Manager', 108],
@@ -49,7 +79,7 @@ test('REQ-002 #2: working stats match the in-game values (x1.2, each stat floore
   }
 });
 
-test('REQ-002 #4: management counts settled_in, merits and book with working stats, caps at 30', () => {
+test('REQ-002 prediction: management counts settled_in, merits and book with working stats, caps at 30', () => {
   // [working stats, settled_in + merits + book, in-game management]
   const observed = [
     [83, 13, 6], [98, 14, 1], [93, 12, 3], [94, 10, 3], [91, 10, 4], [94, 14, 2], [35, 10, 23], [110, 10, 0],
@@ -64,67 +94,104 @@ test('REQ-002 #4: management counts settled_in, merits and book with working sta
   }
 });
 
-test('REQ-002 #4: the Manager gets no management bonus', () => {
+test('REQ-002 prediction: the Manager gets no management bonus', () => {
   assert.equal(management(14, 'Manager', 0), 0);
 });
 
-test('REQ-002 #5: multipliers split into carry, management parts and addiction', () => {
+test('REQ-002 prediction: multipliers split into carry, management parts and addiction', () => {
   // [working_stats, settled_in, book, merits, director_education, management, wrong_gender, addiction, inactivity]
   assert.deepEqual(fromMultipliers([110, 10, 0, 1, 12, 0, 0, -15, 0]), { carry: 8, parts: 11, addiction: -15 });
   assert.deepEqual(fromMultipliers([94, 10, 50, 0, 12, 0, 99, -12, -2]), { carry: 58, parts: 60, addiction: -12 });
 });
 
-test('REQ-002 #1: prediction at the current position equals the in-game total for every employee', () => {
+test('REQ-002 prediction: prediction at the current position equals the in-game total for every employee', () => {
   for (const e of company(CURRENT)) {
     assert.equal(predict(e, e.position), e.total, e.name);
   }
 });
 
-test('REQ-002 #7: the weakest is the lowest Bartender prediction with addiction left out', () => {
-  const staff = company(CURRENT);
-  // LexxLuth predicts 101 as Bartender with addiction -13, lower than FF357's 107; without addiction LexxLuth is 114.
-  assert.equal(staff[weakest(staff)].name, 'FF357');
+test('REQ-002 prediction: options show each position with the prediction from live stats', () => {
+  const [kyrax] = nov22();
+  // Bouncer is Kyrax's current position; the game reported 108 there.
+  assert.equal(optionText(kyrax, 'Bouncer'), 'Bouncer(108)');
+  const ff357 = nov22().find((e) => e.name === 'FF357');
+  assert.equal(optionText(ff357, 'Bartender'), 'Bartender(107)');
+  assert.equal(optionText(ff357, 'Trainer'), 'Trainer(78)');
+  // The Manager position gets no management bonus.
+  assert.equal(optionText(ff357, 'Manager'), 'Manager(67)');
+  assert.equal(optionText(ff357, 'Unassigned'), 'Unassigned');
 });
 
-test('REQ-002 #7: the Manager is never the weakest', () => {
-  const staff = company(CURRENT, { ...STAFF, jadefish: { ...STAFF.jadefish, stats: [0, 0, 0], carry: -100 } });
-  assert.equal(staff[weakest(staff)].name, 'FF357');
+test('REQ-002 target company day: the company day the next 18:00 TCT rollover starts', () => {
+  const at = (iso) => targetWeekday(new Date(iso));
+  assert.equal(at('2026-11-27T10:00:00Z'), SATURDAY, 'Friday before 18:00 sets Saturday');
+  assert.equal(at('2026-11-26T20:00:00Z'), SATURDAY, 'Thursday after 18:00 sets Saturday');
+  assert.equal(at('2026-11-27T20:00:00Z'), 0, 'Friday after 18:00 sets Sunday');
+  assert.equal(at('2026-11-29T17:59:00Z'), 1, 'Sunday 17:59 sets Monday');
+  assert.equal(at('2026-11-29T18:00:00Z'), TUESDAY, 'Sunday 18:00 sets Tuesday');
 });
 
-test('REQ-002 #13, #16: the 2026-11-05 company swaps Kyrax to Bouncer and RMForever to Bartender', () => {
-  assert.deepEqual(moves(company(CURRENT)), { Kyrax: 'Bartender > Bouncer', RMForever: 'Bouncer > Bartender' });
+test('REQ-002 Trainer: the lowest Bartender prediction, addiction left out, among Trainer predictions above 50', () => {
+  const staff = nov22();
+  // BbLoup is lowest (60 + 11 = 71) but predicts 44 as Trainer; FF357 is next (107 + 3 = 110) and predicts 78.
+  assert.equal(staff[trainerPick(staff)].name, 'FF357');
 });
 
-test('REQ-002 #14: after that swap no other swap gains under every weight set', () => {
-  assert.deepEqual(moves(company({ ...CURRENT, Kyrax: 'Bouncer', RMForever: 'Bartender' })), {});
+test('REQ-002 Trainer: a Trainer prediction of exactly 50 is not above 50', () => {
+  const at50 = nov22({}, { ...STAFF_1122, BbLoup: { ...STAFF_1122.BbLoup, carry: 14 } });
+  assert.equal(predict(at50.find((e) => e.name === 'BbLoup'), 'Trainer'), 50);
+  assert.equal(at50[trainerPick(at50)].name, 'FF357');
+  const at51 = nov22({}, { ...STAFF_1122, BbLoup: { ...STAFF_1122.BbLoup, carry: 15 } });
+  assert.equal(at51[trainerPick(at51)].name, 'BbLoup');
 });
 
-test('REQ-002 #13: a swap that only some weight sets gain is not suggested', () => {
-  // With no stats every position predicts 30 + carry, so the swap gains under per_position_trainer and is 0 under total_eff.
-  const flat = { A: { stats: [0, 0, 0], carry: 50, parts: 0, addiction: 0 }, B: { stats: [0, 0, 0], carry: 10, parts: 0, addiction: 0 },
-    C: { stats: [0, 0, 0], carry: -50, parts: 0, addiction: 0 } };
-  const staff = company({ A: 'Bartender', B: 'Bouncer', C: 'Trainer' }, flat);
-  assert.equal(bestPair(staff, 2), null);
-  assert.deepEqual(moves(staff), {});
+test('REQ-002 Trainer: the Manager is never the Trainer pick', () => {
+  // With no stats the Manager would predict 62 as Trainer and 62 as Bartender, lower than everyone else.
+  const staff = nov22({}, { ...STAFF_1122, jadefish: { ...STAFF_1122.jadefish, stats: [0, 0, 0] } });
+  assert.equal(staff[trainerPick(staff)].name, 'FF357');
 });
 
-test('REQ-002 #8, #15: the weakest out of Trainer moves there and no swap is shown that day', () => {
-  assert.deepEqual(moves(company({ ...CURRENT, FF357: 'Bartender' })), { FF357: 'Bartender > Trainer' });
+test('REQ-002 Trainer: on a weekday company day the pick moves to Trainer', () => {
+  assert.deepEqual(moves(nov22(), TUESDAY), { FF357: 'Bartender > Trainer' });
 });
 
-test('REQ-002 #8: another employee in Trainer goes to Bartender', () => {
-  assert.deepEqual(moves(company({ ...CURRENT, FF357: 'Bartender', Humerm: 'Trainer' })),
-    { FF357: 'Bartender > Trainer', Humerm: 'Trainer > Bartender' });
+test('REQ-002 Trainer: on a weekend company day nobody moves to Trainer', () => {
+  assert.deepEqual(moves(nov22(), SATURDAY), {});
 });
 
-test('REQ-002 #9: the single position the weakest leaves is not filled', () => {
-  assert.deepEqual(moves(company({ ...CURRENT, FF357: 'Barback', Yaii: 'Bartender' })), { FF357: 'Barback > Trainer' });
+test('REQ-002 Trainer: on a weekend company day the Trainer goes back without pulling other moves along', () => {
+  // Counting the Trainer as 0 would add 107 points and let a rotation that total_eff rejects ride along.
+  assert.deepEqual(moves(nov22({ FF357: 'Trainer' }), SATURDAY), { FF357: 'Trainer > Bartender' });
 });
 
-test('REQ-002 #6, #10: the Manager and employees outside the swap positions are not moved', () => {
-  const result = moves(company({ ...CURRENT, LexxLuth: 'Promoter' }));
-  assert.equal(result.jadefish, undefined);
-  assert.equal(result.LexxLuth, undefined);
+test('REQ-002 Trainer: another employee in Trainer leaves on a weekday', () => {
+  assert.deepEqual(moves(nov22({ Humerm: 'Trainer' }), TUESDAY),
+    { Humerm: 'Trainer > Bartender', FF357: 'Bartender > Trainer' });
+});
+
+test('REQ-002 arrangement: a swap that total_eff scores exactly 0 is not suggested', () => {
+  const [rm, yaii] = nov22().filter((e) => e.name === 'RMForever' || e.name === 'Yaii');
+  const g = gains([rm, yaii], ['Bartender', 'Barback']);
+  assert.ok(g.slice(0, 3).every((x) => x > 0));
+  assert.equal(g[3], 0);
+  assert.deepEqual(moves(nov22(), SATURDAY), {});
+});
+
+test('REQ-002 arrangement: every move of the best arrangement shows at once', () => {
+  assert.deepEqual(moves(nov22({ Kyrax: 'Barback', RMForever: 'Disk-jockey', Aells_jia: 'Bouncer' }), SATURDAY), {
+    Kyrax: 'Barback > Bartender', RMForever: 'Disk-jockey > Bouncer', Aells_jia: 'Bouncer > Disk-jockey', Yaii: 'Bartender > Barback',
+  });
+});
+
+test('REQ-002 arrangement: the single position the Trainer pick leaves is filled', () => {
+  assert.deepEqual(moves(nov22({ FF357: 'Barback', RMForever: 'Bartender' }), TUESDAY), {
+    Kyrax: 'Bouncer > Bartender', RMForever: 'Bartender > Bouncer', Yaii: 'Bartender > Barback', FF357: 'Barback > Trainer',
+  });
+});
+
+test('REQ-002 arrangement: the Manager and other positions stay', () => {
+  const result = moves(nov22({ Saikoa: 'Promoter' }), TUESDAY);
+  assert.deepEqual(result, { FF357: 'Bartender > Trainer' });
 });
 
 test('REQ-001 #2: only the Nightclub position list is recognised', () => {

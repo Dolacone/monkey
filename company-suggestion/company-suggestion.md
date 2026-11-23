@@ -18,10 +18,14 @@
 | effectiveness 明細 | `.effectiveness[data-multipliers]`，JSON 陣列 |
 | 目前職位 | `select.employee-rank` 選中的 option 文字 |
 | 顯示文字 | `.rank .ui-selectmenu-status`（jQuery UI selectmenu 的顯示層） |
+| 展開清單 | 顯示文字所在 `a.ui-selectmenu` 的 `aria-owns` 指向的 `ul`，選項依 option 順序為 `li > a` |
 
-腳本只改 `.ui-selectmenu-status` 的文字和 `li` 的 class，不動 `select.employee-rank` 的值。
+腳本只改 `.ui-selectmenu-status` 的文字、展開清單 `li > a` 的文字和員工 `li` 的 class，不動 `select.employee-rank` 的值與 option 文字。
+
+目標 company day 用裝置時鐘的 UTC 時間計算。
 
 ## 選擇器穩定性
 
 - `.stats` 的 `title` 屬性在手機版會被搬到 `data-title`，不能用來讀 stats。`.span-cont` 的完整數字兩種排版都有。
+- 展開清單掛在 `document.body` 下，不在員工 `li` 內，只能經由 `aria-owns` 找到。
 - `data-multipliers` 的順序為 `[working_stats, settled_in, book, merits, director_education, management, wrong_gender, addiction, inactivity]`。
