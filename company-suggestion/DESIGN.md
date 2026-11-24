@@ -24,23 +24,30 @@ Night Club tracker 依 10 星安全差距決定每天放不放 Trainer，這需�
 
 Trainer 人選沿用 tracker 的 `trainer_pick` 排序（Bartender 預測扣掉 addiction），加上 Trainer 預測高於 50 的門檻。
 
+## REQ-002 — 已儲存的職位
+
+腳本第一次讀到員工列時，把 `select.employee-rank` 的 `selectedIndex` 存進以 `select` 元素為 key 的 `WeakMap`，之後都用這個值當已儲存的職位。建議職位只從已儲存的職位算，下拉選單現在選的職位只用來和建議比對。
+
+- 2026-11-24 在 torn.com 用 Torn 的 `jquery.ui.selectmenu.js?v=2025-04` 建一個測試用 select：選項改變 `selectedIndex`，但 option 的 `selected` 屬性留在原本那個。員工頁的 option 有沒有帶 `selected` 屬性沒看過，因此不用 `defaultSelected`。
+- hypothesis: Submit Changes 後 Torn 若沒有重建員工列表，已儲存的職位維持送出前的值，直到重新載入頁面。
+
 ## REQ-002 — 職位權重
 
-4 組權重是 Night Club tracker 以 2026-11-22 為止的資料擬合的客人模型係數（`position_weights`），腳本寫死在 `WEIGHT_SETS`，數值與 `FORMULAS.md` 相同，不隨每日重新擬合更新。第一組 bartender_vs_rest 是 holdout 誤差最低的使用中模型。
+bartender_vs_rest 是 Night Club tracker 以 2026-11-22 為止的資料擬合的客人模型係數（`position_weights`）中 holdout 誤差最低的一組。腳本寫死在 `WEIGHTS`，數值與 `FORMULAS.md` 相同，不隨每日重新擬合更新。
 
-增益先把同一個權重值的 effectiveness 點數相加成整數，再乘權重。total_eff 這類權重全相同的模型，點數總和為 0 時增益剛好是 0，不會因浮點誤差變成正數。
+分數先把同一個權重值的 effectiveness 點數以固定順序相加成整數，再乘權重。點數總和相同的配置分數完全相等，不會因浮點誤差分出高低。
 
 ## REQ-002 — 職位配置
 
-配置列舉參與者中 3 個不同的人依序擔任 Barback、Bouncer、Disk-jockey，其餘 Bartender，共 n(n−1)(n−2) 種，10 名參與者是 720 種。增益最大的配置有多個時，取調動人數最少的。
+配置列舉參與者中 3 個不同的人依序擔任 Barback、Bouncer、Disk-jockey，其餘 Bartender，共 n(n−1)(n−2) 種，10 名參與者是 720 種。分數最高的配置有多個時，取和已儲存職位不同的人數最少的。
 
-「4 組權重都增益」與 tracker 的 `target_assignment` 相同。目前在 Trainer 的員工以 Bartender 計算目前職位：若以 0 計算，離開 Trainer 本身就帶來約 100 點增益，會讓 total_eff 判定為虧損的其他調動一起通過。沒有配置通過時，這名員工仍換到 Bartender。
+建議職位是絕對最佳，和已儲存職位怎麼排無關。tracker 的 `target_assignment` 只接受 4 組權重都增益的調動，從兩個 Barback 的狀態出發時，把一人換回 Bartender 在 bartender_vs_rest 是負增益，因此永遠不會提示。代價是其他權重組不同意的調動也會建議：以 11-22 資料，Kyrax、RMForever、Yaii 的輪調在 bartender_vs_rest、per_position、per_position_trainer 都增益，total_eff 則預測客人少 0.12%。
 
 ## REQ-002 — 選項數值
 
 Torn 用的是 Felix Nagel 版 jQuery UI selectmenu（有 `_refreshValue`、`_formatText`、`_selectedOptionLi`）。外掛在初始化時把原生 option 文字複製成 `div.ui-selectmenu-menu > ul#<id>-menu` 內的 `li > a`，按鈕 `a.ui-selectmenu` 的 `aria-owns` 指向這個 `ul`。腳本依 option 順序改寫 `li > a` 的文字。
 
-使用者點選選項時，外掛把該 `li > a` 的 html 複製到 `.ui-selectmenu-status`，顯示會短暫變成 `Bartender(99)`；DOM 變動觸發重新計算後，狀態文字改回 `目前職位` 或 `目前職位 > 建議職位`。
+使用者點選選項時，外掛把該 `li > a` 的 html 複製到 `.ui-selectmenu-status`，顯示會短暫變成 `Bartender(99)`；DOM 變動觸發重新計算後，狀態文字改回 `選的職位` 或 `選的職位 > 建議職位`。
 
 外掛結構是 2026-11-23 從 torn.com 載入的外掛原始碼讀出的；當時的瀏覽器帳號開員工頁會被導到 Job Listing，沒有在員工頁面上看到實際清單。
 
@@ -50,6 +57,6 @@ Torn 用的是 Felix Nagel 版 jQuery UI selectmenu（有 `_refreshValue`、`_fo
 
 ## 測試覆蓋
 
-- 自動測試：REQ-001 條件 2，REQ-002 條件 1-11，以及條件 14 的選項文字。見 `company-suggestion.test.md`。
+- 自動測試：REQ-001 條件 2，REQ-002 條件 1、2、4-11，以及條件 14 的選項文字。見 `company-suggestion.test.md`。
 - 手動檢查：REQ-001 條件 1、3、4、5，REQ-002 條件 12、13，在實際員工頁面注入腳本確認。
-- 尚未在員工頁面確認：REQ-002 條件 14 的選項文字寫入展開清單。
+- 尚未在員工頁面確認：REQ-002 條件 3 改選職位後建議不變，條件 14 的選項文字寫入展開清單。

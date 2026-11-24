@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn: Company Position Suggestion
 // @namespace    company-suggestion
-// @version      2.1.0
+// @version      2.1.1
 // @description  Mark each Nightclub employee's suggested position and show predicted effectiveness on every position option
 // @match        https://www.torn.com/companies.php*
 // @downloadURL  https://raw.githubusercontent.com/Dolacone/monkey/refs/heads/master/company-suggestion/company-suggestion.js
@@ -38,13 +38,8 @@
   const CARRY_INDEXES = [1, 2, 3, 4, 7, 8];
   const MANAGEMENT_PART_INDEXES = [1, 2, 3];
   const ADDICTION_INDEX = 7;
-  // Log customer change per effectiveness point (FORMULAS.md); the first set is the model in use.
-  const WEIGHT_SETS = [
-    { 'Bartender': 0.001062, 'Bouncer': 0.001941, 'Barback': 0.001941, 'Disk-jockey': 0.001941 }, // bartender_vs_rest
-    { 'Bartender': 0.001102, 'Bouncer': 0.003238, 'Barback': 0.001842, 'Disk-jockey': 0.001590 }, // per_position
-    { 'Bartender': 0.001094, 'Bouncer': 0.003178, 'Barback': 0.001811, 'Disk-jockey': 0.001578 }, // per_position_trainer
-    { 'Bartender': 0.001187, 'Bouncer': 0.001187, 'Barback': 0.001187, 'Disk-jockey': 0.001187 }, // total_eff
-  ];
+  // Log customer change per effectiveness point, weight set bartender_vs_rest (FORMULAS.md).
+  const WEIGHTS = { 'Bartender': 0.001062, 'Bouncer': 0.001941, 'Barback': 0.001941, 'Disk-jockey': 0.001941 };
 
   // ---- Prediction (REQ-002: predicted effectiveness) ----
 
@@ -97,25 +92,21 @@
 
   // ---- Arrangement (REQ-002: position arrangement) ----
 
-  // Gain of moving members to positions under each weight set; a current Trainer counts as Bartender.
-  // Points are summed per weight value before multiplying, so equal weights cancel exactly.
-  function gains(members, positions) {
-    return WEIGHT_SETS.map((w) => {
-      const points = new Map();
-      const add = (position, value) => points.set(w[position], (points.get(w[position]) || 0) + value);
-      members.forEach((e, k) => {
-        const from = e.position === 'Trainer' ? FILL : e.position;
-        add(positions[k], predict(e, positions[k]));
-        add(from, -predict(e, from));
-      });
-      let gain = 0;
-      points.forEach((value, weight) => { gain += weight * value; });
-      return gain;
+  // Sum of weight x prediction. Points are summed per weight value in a fixed order before multiplying,
+  // so arrangements with equal point sums score exactly equal.
+  function score(members, positions) {
+    const points = new Map([...new Set(Object.values(WEIGHTS))].map((w) => [w, 0]));
+    members.forEach((e, k) => {
+      const w = WEIGHTS[positions[k]];
+      points.set(w, points.get(w) + predict(e, positions[k]));
     });
+    let total = 0;
+    points.forEach((value, weight) => { total += weight * value; });
+    return total;
   }
 
-  // One member in each single position and the rest Bartender: the arrangement that gains under every weight set,
-  // largest gain under the first, fewer moves on a tie. If none gains, members stay and a current Trainer goes to Bartender.
+  // One member in each single position and the rest Bartender: the arrangement with the highest score,
+  // fewer moves from the saved positions on a tie.
   function bestArrangement(members) {
     let best = null;
     const n = members.length;
@@ -125,19 +116,18 @@
           if (a === b || a === c || b === c) continue;
           const positions = members.map(() => FILL);
           [positions[a], positions[b], positions[c]] = SINGLES;
-          const g = gains(members, positions);
-          if (Math.min(...g) <= 0) continue;
+          const value = score(members, positions);
           const moves = positions.filter((p, k) => p !== members[k].position).length;
-          if (!best || g[0] > best.gain || (g[0] === best.gain && moves < best.moves)) best = { gain: g[0], moves, positions };
+          if (!best || value > best.value || (value === best.value && moves < best.moves)) best = { value, moves, positions };
         }
       }
     }
-    return best ? best.positions : members.map((e) => (e.position === 'Trainer' ? FILL : e.position));
+    return best ? best.positions : members.map((e) => e.position);
   }
 
   // ---- Suggestion ----
 
-  // Suggested position for each employee, in input order, for a target company day on weekday (0 = Sunday).
+  // Suggested position for each employee from the saved positions, in input order, for a target company day on weekday (0 = Sunday).
   function suggest(employees, weekday) {
     const positions = employees.map((e) => e.position);
     const pick = weekday >= 1 && weekday <= 5 ? trainerPick(employees) : -1;
@@ -162,11 +152,13 @@
   }
 
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { workingStats, management, predict, fromMultipliers, targetWeekday, trainerPick, gains, bestArrangement, suggest, optionText, isNightclub };
+    module.exports = { workingStats, management, predict, fromMultipliers, targetWeekday, trainerPick, score, bestArrangement, suggest, optionText, isNightclub };
     return;
   }
 
   // ---- DOM (REQ-001, REQ-002: display) ----
+
+  const savedIndexes = new WeakMap();
 
   function readRow(li) {
     const effectiveness = li.querySelector('.effectiveness[data-multipliers]');
@@ -175,12 +167,15 @@
     const spans = [...li.querySelectorAll('.acc-body .stats .span-cont')];
     if (!effectiveness || !select || !status || spans.length !== 3) return null;
     const button = status.closest('[aria-owns]');
+    if (!savedIndexes.has(select)) savedIndexes.set(select, select.selectedIndex);
+    const options = [...select.options].map((o) => o.text.trim());
     return {
       li,
       status,
       menu: button && document.getElementById(button.getAttribute('aria-owns')),
-      options: [...select.options].map((o) => o.text.trim()),
-      position: select.options[select.selectedIndex].text.trim(),
+      options,
+      position: options[savedIndexes.get(select)],
+      selected: options[select.selectedIndex],
       stats: spans.map((s) => Number(s.querySelector('.t-show:not(.bold)').textContent.replace(/\D/g, ''))),
       ...fromMultipliers(JSON.parse(effectiveness.dataset.multipliers)),
     };
@@ -200,9 +195,9 @@
     ensureStyle();
     const suggested = suggest(rows, targetWeekday(new Date()));
     rows.forEach((row, k) => {
-      const move = suggested[k] !== row.position;
+      const move = suggested[k] !== row.selected;
       row.li.classList.toggle(MOVE_CLASS, move);
-      const text = move ? `${row.position} > ${suggested[k]}` : row.position;
+      const text = move ? `${row.selected} > ${suggested[k]}` : row.selected;
       if (row.status.textContent !== text) row.status.textContent = text;
       const links = row.menu ? row.menu.querySelectorAll('li > a') : [];
       row.options.forEach((name, i) => {

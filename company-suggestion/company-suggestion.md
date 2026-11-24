@@ -16,7 +16,8 @@
 |---|---|
 | 三項 stats | `.acc-body .stats .span-cont` 內的 `.t-show:not(.bold)`，依序為 Manual labor、Intelligence、Endurance |
 | effectiveness 明細 | `.effectiveness[data-multipliers]`，JSON 陣列 |
-| 目前職位 | `select.employee-rank` 選中的 option 文字 |
+| 已儲存的職位 | 腳本第一次讀到該列時 `select.employee-rank` 選中的 option 文字，以 `select` 元素為 key 存在 `WeakMap` |
+| 選的職位 | `select.employee-rank` 現在選中的 option 文字 |
 | 顯示文字 | `.rank .ui-selectmenu-status`（jQuery UI selectmenu 的顯示層） |
 | 展開清單 | 顯示文字所在 `a.ui-selectmenu` 的 `aria-owns` 指向的 `ul`，選項依 option 順序為 `li > a` |
 

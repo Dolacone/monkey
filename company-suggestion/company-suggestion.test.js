@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 
-const { workingStats, management, predict, fromMultipliers, targetWeekday, trainerPick, gains, suggest, optionText, isNightclub } =
+const { workingStats, management, predict, fromMultipliers, targetWeekday, trainerPick, suggest, optionText, isNightclub } =
   require('./company-suggestion.js');
 
 // Real Nightclub employees on company day 2026-11-05: live stats [manual labor, intelligence, endurance],
@@ -151,30 +151,41 @@ test('REQ-002 Trainer: the Manager is never the Trainer pick', () => {
   assert.equal(staff[trainerPick(staff)].name, 'FF357');
 });
 
+// The best arrangement from the 2026-11-22 saved positions, Trainer aside.
+const BEST_1122 = { Kyrax: 'Bouncer > Bartender', RMForever: 'Barback > Bouncer', Yaii: 'Bartender > Barback' };
+
 test('REQ-002 Trainer: on a weekday company day the pick moves to Trainer', () => {
-  assert.deepEqual(moves(nov22(), TUESDAY), { FF357: 'Bartender > Trainer' });
+  assert.deepEqual(moves(nov22(), TUESDAY), { ...BEST_1122, FF357: 'Bartender > Trainer' });
 });
 
 test('REQ-002 Trainer: on a weekend company day nobody moves to Trainer', () => {
-  assert.deepEqual(moves(nov22(), SATURDAY), {});
+  assert.deepEqual(moves(nov22(), SATURDAY), BEST_1122);
 });
 
-test('REQ-002 Trainer: on a weekend company day the Trainer goes back without pulling other moves along', () => {
-  // Counting the Trainer as 0 would add 107 points and let a rotation that total_eff rejects ride along.
-  assert.deepEqual(moves(nov22({ FF357: 'Trainer' }), SATURDAY), { FF357: 'Trainer > Bartender' });
+test('REQ-002 Trainer: on a weekend company day the Trainer joins the arrangement', () => {
+  assert.deepEqual(moves(nov22({ FF357: 'Trainer' }), SATURDAY), { ...BEST_1122, FF357: 'Trainer > Bartender' });
 });
 
 test('REQ-002 Trainer: another employee in Trainer leaves on a weekday', () => {
   assert.deepEqual(moves(nov22({ Humerm: 'Trainer' }), TUESDAY),
-    { Humerm: 'Trainer > Bartender', FF357: 'Bartender > Trainer' });
+    { ...BEST_1122, Humerm: 'Trainer > Bartender', FF357: 'Bartender > Trainer' });
 });
 
-test('REQ-002 arrangement: a swap that total_eff scores exactly 0 is not suggested', () => {
-  const [rm, yaii] = nov22().filter((e) => e.name === 'RMForever' || e.name === 'Yaii');
-  const g = gains([rm, yaii], ['Bartender', 'Barback']);
-  assert.ok(g.slice(0, 3).every((x) => x > 0));
-  assert.equal(g[3], 0);
-  assert.deepEqual(moves(nov22(), SATURDAY), {});
+test('REQ-002 arrangement: the suggestion is the same whichever participants hold the single positions', () => {
+  const target = (changes) => {
+    const staff = nov22(changes);
+    const suggested = suggest(staff, TUESDAY);
+    return Object.fromEntries(staff.map((e, k) => [e.name, suggested[k]]));
+  };
+  const best = target({});
+  assert.deepEqual(target({ Kyrax: 'Barback', RMForever: 'Disk-jockey', Aells_jia: 'Bouncer' }), best);
+  assert.deepEqual(target({ Humerm: 'Bouncer', Kyrax: 'Bartender' }), best);
+});
+
+test('REQ-002 arrangement: a second Barback goes back to Bartender', () => {
+  // Barback points weigh more than Bartender points, so only the whole arrangement brings the second Barback back.
+  assert.deepEqual(moves(nov22({ V50: 'Barback' }), TUESDAY),
+    { ...BEST_1122, V50: 'Barback > Bartender', FF357: 'Bartender > Trainer' });
 });
 
 test('REQ-002 arrangement: every move of the best arrangement shows at once', () => {
@@ -190,8 +201,7 @@ test('REQ-002 arrangement: the single position the Trainer pick leaves is filled
 });
 
 test('REQ-002 arrangement: the Manager and other positions stay', () => {
-  const result = moves(nov22({ Saikoa: 'Promoter' }), TUESDAY);
-  assert.deepEqual(result, { FF357: 'Bartender > Trainer' });
+  assert.deepEqual(moves(nov22({ Saikoa: 'Promoter' }), TUESDAY), { ...BEST_1122, FF357: 'Bartender > Trainer' });
 });
 
 test('REQ-001 #2: only the Nightclub position list is recognised', () => {
